@@ -1,0 +1,2587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Depths &amp; Spires</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="icon" href="icon-192x192.png">
+<link rel="apple-touch-icon" href="icon-192x192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#100d0b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Depths &amp; Spires — a tile-by-tile dungeon expedition for 1–4 players.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#100d0b;
+  --bg-panel:#1b1613;
+  --bg-panel-2:#221b17;
+  --ink:#e9e1cd;
+  --ink-dim:#a89a83;
+  --ink-faint:#6b5f51;
+  --ember:#c9622a;
+  --ember-bright:#e88a4a;
+  --verdigris:#4f8f7b;
+  --blood:#9c2b3a;
+  --blood-bright:#c94656;
+  --gold:#c9a227;
+  --line:#3a332c;
+  --line-bright:#544a3d;
+  --shadow: 0 10px 30px rgba(0,0,0,.5);
+  --radius: 3px;
+  font-size:16px;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(ellipse at 20% -10%, rgba(201,98,42,.10), transparent 45%),
+    radial-gradient(ellipse at 100% 110%, rgba(79,143,123,.08), transparent 45%),
+    var(--bg);
+  color:var(--ink);
+  font-family:'Spectral', Georgia, serif;
+  min-height:100%;
+  overflow-x:hidden;
+}
+h1,h2,h3,.display{font-family:'Cinzel', serif; letter-spacing:.03em; font-weight:700;}
+.mono{font-family:'IBM Plex Mono', monospace;}
+button{font-family:inherit;}
+::selection{background:var(--ember); color:#160f0b;}
+
+/* ---------- layout scaffolding ---------- */
+#app{min-height:100vh; display:flex; flex-direction:column;}
+.screen{display:none; flex:1; min-height:100vh;}
+.screen.active{display:flex; flex-direction:column;}
+
+/* ---------- buttons ---------- */
+.btn{
+  appearance:none; border:1px solid var(--line-bright); background:var(--bg-panel-2); color:var(--ink);
+  padding:.7em 1.3em; font-size:.95rem; letter-spacing:.02em; cursor:pointer; border-radius:var(--radius);
+  transition:border-color .15s, background .15s, transform .1s; font-family:'Cinzel',serif; font-weight:500;
+}
+.btn:hover{border-color:var(--ember); background:#2a221c;}
+.btn:active{transform:translateY(1px);}
+.btn.primary{background:linear-gradient(180deg,var(--ember-bright),var(--ember)); color:#1a0f08; border-color:#7a3c17; font-weight:700;}
+.btn.primary:hover{filter:brightness(1.08);}
+.btn.danger{border-color:var(--blood); }
+.btn.danger:hover{background:rgba(156,43,58,.25);}
+.btn.ghost{background:transparent; border-color:var(--line);}
+.btn:disabled{opacity:.35; cursor:not-allowed;}
+.btn.small{padding:.4em .8em; font-size:.8rem;}
+
+/* ---------- TITLE ---------- */
+#screen-title{align-items:center; justify-content:center; text-align:center; position:relative; padding:2rem 1rem;}
+.torchglow{position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(circle at 50% 30%, rgba(201,98,42,.16), transparent 55%);
+  animation:flicker 5s ease-in-out infinite;}
+@keyframes flicker{0%,100%{opacity:1;}50%{opacity:.75;}52%{opacity:.9;}75%{opacity:.65;}}
+.wordmark{font-size:clamp(2.4rem,8vw,5rem); margin:0; text-transform:uppercase; line-height:1.05;
+  background:linear-gradient(180deg,#f3e6c8,var(--ember-bright) 60%,var(--ember));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 2px 24px rgba(201,98,42,.25);}
+.wordmark small{display:block; font-size:.32em; letter-spacing:.5em; color:var(--ink-dim); -webkit-text-fill-color:var(--ink-dim); margin-top:.6em;}
+.tagline{color:var(--ink-dim); font-style:italic; font-size:1.05rem; margin:1.2rem 0 2.4rem;}
+.title-actions{display:flex; gap:.9rem; flex-wrap:wrap; justify-content:center; z-index:1;}
+.compass-deco{width:min(46vw,220px); margin:0 auto 1rem; opacity:.85;}
+
+/* ---------- SETUP ---------- */
+#screen-setup{padding:1.5rem 1rem 3rem; max-width:900px; margin:0 auto; width:100%;}
+.setup-section{margin-bottom:2rem;}
+.setup-section h2{font-size:1.1rem; color:var(--ember-bright); border-bottom:1px solid var(--line); padding-bottom:.5rem; margin-bottom:1rem;
+  display:flex; align-items:center; gap:.6em;}
+.eyebrow{font-family:'IBM Plex Mono',monospace; font-size:.7rem; letter-spacing:.15em; color:var(--ink-faint); text-transform:uppercase;}
+.pill-row{display:flex; gap:.6rem; flex-wrap:wrap;}
+.pill{border:1px solid var(--line-bright); background:var(--bg-panel-2); padding:.55em 1.1em; border-radius:20px; cursor:pointer; font-size:.9rem; color:var(--ink-dim);}
+.pill.active{border-color:var(--ember); color:var(--ink); background:rgba(201,98,42,.15);}
+.player-config{border:1px solid var(--line); background:var(--bg-panel); border-radius:var(--radius); padding:1rem; margin-bottom:.8rem;}
+.player-config-head{display:flex; justify-content:space-between; align-items:center; gap:.6rem; margin-bottom:.7rem;}
+.player-config-head input[type=text]{background:var(--bg); border:1px solid var(--line); color:var(--ink); padding:.5em .7em; border-radius:var(--radius); font-family:'Spectral',serif; font-size:1rem; flex:1;}
+.class-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.7rem;}
+.class-card{border:1px solid var(--line-bright); background:var(--bg-panel-2); border-radius:var(--radius); padding:.8rem; cursor:pointer; text-align:left;}
+.class-card:hover{border-color:var(--ink-faint);}
+.class-card.selected{border-color:var(--ember); box-shadow:0 0 0 1px var(--ember) inset;}
+.class-card .cicon{font-size:1.6rem;}
+.class-card .cname{font-family:'Cinzel',serif; font-weight:700; margin:.3em 0 .15em;}
+.class-card .cstats{font-family:'IBM Plex Mono',monospace; font-size:.72rem; color:var(--ink-dim); display:flex; gap:.7em; margin-bottom:.4em;}
+.class-card .cdesc{font-size:.8rem; color:var(--ink-dim); line-height:1.35;}
+.setup-footer{display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:2rem;}
+
+/* ---------- CODEX ---------- */
+#screen-codex{padding:1.5rem 1rem 3rem; max-width:1100px; margin:0 auto; width:100%;}
+.codex-tabs{display:flex; gap:.5rem; margin-bottom:1.2rem; flex-wrap:wrap;}
+.codex-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:.9rem;}
+
+/* ---------- CARDS (item/enemy/trap) ---------- */
+.card{border:1px solid var(--line-bright); border-radius:6px; background:linear-gradient(180deg,var(--bg-panel-2),var(--bg-panel)); padding:.9rem; position:relative; overflow:hidden;}
+.card::before{content:''; position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background:linear-gradient(135deg, rgba(255,255,255,.03), transparent 40%);}
+.card .cardtype{font-family:'IBM Plex Mono',monospace; font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);}
+.card .cardicon{font-size:2rem; line-height:1; margin:.35em 0;}
+.card .cardname{font-family:'Cinzel',serif; font-weight:700; font-size:.95rem; margin:0 0 .3em;}
+.card .cardstats{display:flex; gap:.7em; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:.68rem; color:var(--gold); margin-bottom:.4em;}
+.card .carddesc{font-size:.78rem; color:var(--ink-dim); line-height:1.4;}
+.card.enemy{border-color:#5a2a30;}
+.card.enemy .cardstats{color:var(--blood-bright);}
+.card.trap{border-color:#5a4a20;}
+.card.item-weapon{border-color:#3d5a52;}
+.card.item-weapon .cardstats{color:var(--verdigris);}
+.card.boss{border-color:var(--gold); box-shadow:0 0 18px rgba(201,162,39,.25);}
+.card-footer{margin-top:.6rem; display:flex; justify-content:space-between; align-items:center; gap:.4rem;}
+.uses-badge{font-family:'IBM Plex Mono',monospace; font-size:.65rem; color:var(--ink-faint); border:1px solid var(--line); padding:.15em .5em; border-radius:10px;}
+
+/* ---------- GAME SCREEN ---------- */
+#screen-game{flex-direction:column;}
+#screen-game.active{height:100vh; max-height:100vh; overflow:hidden;}
+#topbar{display:flex; align-items:center; gap:1.2rem; padding:.6rem 1rem; background:var(--bg-panel); border-bottom:1px solid var(--line); flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:.78rem;}
+#topbar .tb-item{color:var(--ink-dim);}
+#topbar .tb-item b{color:var(--ink); font-weight:600;}
+#topbar .tb-title{font-family:'Cinzel',serif; font-weight:700; color:var(--ember-bright); font-size:.9rem; margin-right:auto;}
+#gameLayout{display:flex; flex:1; min-height:0;}
+#playerPanel{width:270px; flex:0 0 270px; background:var(--bg-panel); border-right:1px solid var(--line); padding:1rem; overflow-y:auto;}
+#mapArea{flex:1; display:flex; flex-direction:column; min-width:0; position:relative;}
+#mapViewport{flex:1; position:relative; overflow:hidden; perspective:1500px; perspective-origin:50% 28%; background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.015) 0 2px, transparent 2px 40px), #0a0807;}
+/* IMPORTANT: mapStage carries the only 3D transform (a rigid tilt of the whole
+   board). Everything inside it renders flat/normal first — no preserve-3d on
+   any descendant — then that single flat composite gets tilted as one piece.
+   Giving every tile its own 3D layer (preserve-3d on .cell) is what caused a
+   hairline seam at every join; keeping descendants flat avoids it entirely
+   while still tilting the whole board. */
+#mapStage{position:absolute; inset:0; transform:rotateX(30deg); transform-origin:50% 30%;}
+#mapInner{position:absolute; transition:transform .35s ease; will-change:transform;}
+.cell{position:absolute; width:var(--cs); height:var(--cs);
+  box-shadow:0 calc(var(--cs) * 0.05) 0 -2px rgba(0,0,0,.55), 0 calc(var(--cs) * 0.14) calc(var(--cs) * 0.2) -6px rgba(0,0,0,.7);}
+.cell img{width:100%; height:100%; display:block; image-rendering:auto; -webkit-user-drag:none;}
+.cell .avatar-layer{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:2px; flex-wrap:wrap; pointer-events:none;}
+.avatar-token{width:22%; aspect-ratio:1; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.9em; border:2px solid #1a1310; box-shadow:0 3px 8px rgba(0,0,0,.7), 0 0 0 2px rgba(255,255,255,.06);}
+.stairs-badge{position:absolute; top:4%; right:4%; font-size:1.1em; filter:drop-shadow(0 2px 3px #000);}
+.frontier-arrow{position:absolute; width:15%; height:15%; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:5;}
+.frontier-arrow .dot{width:60%; height:60%; border-radius:50%; background:radial-gradient(circle, var(--ember-bright), var(--ember) 70%); box-shadow:0 0 10px var(--ember), 0 0 2px #fff inset; animation:pulse 1.4s ease-in-out infinite;}
+.frontier-arrow.move .dot{background:radial-gradient(circle, #7fd0b8, var(--verdigris) 70%); box-shadow:0 0 10px var(--verdigris);}
+@keyframes pulse{0%,100%{transform:scale(.85); opacity:.85;}50%{transform:scale(1.15); opacity:1;}}
+.ghost-cell{cursor:pointer; z-index:8;}
+.ghost-cell img{opacity:.92; filter:drop-shadow(0 0 12px rgba(201,98,42,.65));}
+.ghost-cell.invalid img{filter:drop-shadow(0 0 12px rgba(156,43,58,.7));}
+.ghost-ring{position:absolute; inset:-3%; border:2px dashed var(--ember-bright); border-radius:4px; animation:pulse 1.4s ease-in-out infinite; pointer-events:none;}
+.ghost-cell.invalid .ghost-ring{border-color:var(--blood-bright);}
+.fog{position:absolute; background:#0a0807; border:1px solid rgba(255,255,255,.02); box-shadow:none;}
+#mapControls{position:absolute; right:.6rem; bottom:.6rem; display:flex; flex-direction:column; gap:.4rem; z-index:6;}
+#mapControls button{width:2.2rem; height:2.2rem; border-radius:50%; padding:0;}
+#turnbar{padding:.6rem 1rem; background:var(--bg-panel); border-top:1px solid var(--line); display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;}
+#turnbar .spacer{flex:1;}
+#turnActions{display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;}
+.place-status{color:var(--ink-dim); font-size:.82rem;}
+.place-status.valid{color:var(--verdigris);}
+.place-status.invalid{color:var(--ember-bright);}
+.seat-row{display:flex;align-items:center;gap:.6rem;padding:.55rem .7rem;border:1px solid var(--line);
+  border-radius:3px;margin-bottom:.45rem;background:var(--bg-panel-2);}
+.seat-row .seat-name{flex:1;font-weight:600;}
+.seat-row .seat-tag{font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--ink-faint);}
+.seat-row.you{border-color:var(--ember);}
+#netBanner{padding:.4rem 1rem;background:rgba(201,98,42,.12);border-bottom:1px solid var(--line);
+  font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--ink-dim);display:none;}
+#netBanner.show{display:block;}
+#netBanner b{color:var(--ember-bright);}
+/* A spectator can see the active player's modal but must not be able to act
+   in it. pointer-events:none blocks the human while still allowing the
+   host's programmatic .click() when relaying a remote player's choice. */
+#modalBody.spectating{pointer-events:none;opacity:.8;}
+#modalBody.spectating::after{content:'Another player is acting…';display:block;margin-top:.8rem;
+  font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--ink-faint);text-align:center;}
+.waiting-veil{position:absolute;inset:0;background:rgba(10,8,7,.55);display:flex;align-items:center;
+  justify-content:center;z-index:7;pointer-events:none;font-family:'Cinzel',serif;color:var(--ink-dim);
+  text-align:center;padding:1rem;}
+#logPanel{width:280px; flex:0 0 280px; background:var(--bg-panel); border-left:1px solid var(--line); display:flex; flex-direction:column; min-height:0;}
+#logHeader{display:flex; align-items:center; gap:.5rem; cursor:pointer; padding:.8rem .8rem .6rem; user-select:none;}
+#logHeader h3{font-size:.85rem; margin:0; color:var(--ember-bright); white-space:nowrap;}
+#logPreviewLine{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.78rem; color:var(--ink-dim); display:none;}
+#logPanel.collapsed #logPreviewLine{display:block;}
+#logPanel.collapsed #logList{display:none;}
+#logToggleBtn{flex-shrink:0; width:1.8rem; height:1.8rem; padding:0; border-radius:50%; line-height:1;}
+#logList{overflow-y:auto; flex:1; min-height:0; padding:0 .8rem .8rem; font-size:.85rem;}
+.log-entry{padding:.5rem .1rem .5rem .6rem; border-left:3px solid var(--line-bright); margin-bottom:.4rem; color:var(--ink); background:rgba(255,255,255,.025); border-radius:0 4px 4px 0; line-height:1.42;}
+.log-entry b{color:var(--ember-bright);}
+.log-entry.evt-combat{border-left-color:var(--blood-bright);}
+.log-entry.evt-loot{border-left-color:var(--gold);}
+.log-entry.evt-trap{border-left-color:var(--ember);}
+.log-entry.evt-system{border-left-color:var(--verdigris);}
+
+/* character sheet */
+.sheet-name{font-family:'Cinzel',serif; font-weight:700; font-size:1.05rem; margin-bottom:.1em;}
+.sheet-class{color:var(--ink-dim); font-size:.8rem; margin-bottom:.7rem;}
+.hpbar-wrap{margin-bottom:.9rem;}
+.hpbar-label{display:flex; justify-content:space-between; font-family:'IBM Plex Mono',monospace; font-size:.7rem; color:var(--ink-dim); margin-bottom:.25rem;}
+.hpbar{height:10px; border-radius:5px; background:#241a19; border:1px solid var(--line); overflow:hidden;}
+.hpbar-fill{height:100%; background:linear-gradient(90deg,var(--blood),var(--blood-bright)); transition:width .3s;}
+.status-chips{display:flex; gap:.3rem; flex-wrap:wrap; margin-bottom:.8rem;}
+.chip{font-family:'IBM Plex Mono',monospace; font-size:.62rem; border:1px solid var(--line-bright); padding:.15em .5em; border-radius:10px; color:var(--ink-dim);}
+.panel-subhead{font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-faint); margin:1rem 0 .5rem; font-family:'IBM Plex Mono',monospace;}
+.mini-item{display:flex; align-items:center; gap:.5rem; padding:.4rem; border:1px solid var(--line); border-radius:var(--radius); margin-bottom:.4rem; background:var(--bg-panel-2); cursor:pointer;}
+.mini-item .mi-icon{font-size:1.1rem;}
+.mini-item .mi-body{flex:1; min-width:0;}
+.mini-item .mi-name{font-size:.78rem; font-weight:600;}
+.mini-item .mi-uses{font-size:.65rem; color:var(--ink-faint); font-family:'IBM Plex Mono',monospace;}
+.trophy-row{display:flex; gap:.35rem; flex-wrap:wrap;}
+.trophy{font-size:1.1rem;}
+.empty-note{color:var(--ink-faint); font-size:.78rem; font-style:italic;}
+
+/* ---------- MODAL ---------- */
+#modalRoot{position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; padding:1rem;}
+#modalRoot.open{display:flex;}
+#modalBackdrop{position:absolute; inset:0; background:rgba(6,4,3,.78); backdrop-filter:blur(2px);}
+.modal{position:relative; background:var(--bg-panel); border:1px solid var(--line-bright); border-radius:8px; max-width:480px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow); padding:1.3rem;}
+.modal h2{margin:0 0 .3rem; font-size:1.15rem; color:var(--ember-bright);}
+.modal .modal-sub{color:var(--ink-dim); font-size:.85rem; margin-bottom:1rem; font-style:italic;}
+.combat-row{display:flex; gap:1rem; align-items:center; justify-content:space-between; margin:1rem 0;}
+.combatant{flex:1; text-align:center;}
+.combatant .cname{font-family:'Cinzel',serif; font-weight:700; font-size:.85rem;}
+.roll-result{font-family:'IBM Plex Mono',monospace; text-align:center; padding:.6rem; margin:.6rem 0; border:1px dashed var(--line-bright); border-radius:var(--radius); min-height:1.4em; font-size:.85rem;}
+.modal-actions{display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1rem;}
+.choice-list{display:flex; flex-direction:column; gap:.5rem; margin:1rem 0;}
+.choice-list .card{cursor:pointer;}
+.choice-list .card:hover{border-color:var(--ember);}
+.place-preview{width:min(60vw,190px); margin:0 auto;}
+.place-preview img{width:100%; display:block; transition:transform .25s ease; border-radius:6px; box-shadow:0 10px 24px rgba(0,0,0,.55);}
+
+/* ---------- END screen ---------- */
+#screen-end{align-items:center; justify-content:center; text-align:center; padding:2rem;}
+
+/* responsive */
+@media (max-width:860px){
+  #gameLayout{flex-direction:column; overflow:hidden;}
+  #playerPanel{width:auto; flex:0 1 auto; max-height:24vh; border:none; border-bottom:1px solid var(--line); overflow-y:auto;}
+  #mapArea{order:2; flex:1 1 auto; min-height:0;}
+  #logPanel{order:3; width:auto; flex:0 1 auto; border-left:none; border-top:1px solid var(--line); max-height:34vh;}
+  #logPanel:not(.collapsed) #logList{max-height:27vh;}
+  #mapStage{transform:rotateX(24deg);}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TITLE -->
+  <section id="screen-title" class="screen active">
+    <img src="./icon-192x192.png" alt="" width="60" height="60">
+    <div class="torchglow"></div>
+    <svg class="compass-deco" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="42" fill="none" stroke="#544a3d" stroke-width="1.5"/>
+      <circle cx="50" cy="50" r="34" fill="none" stroke="#3a332c" stroke-width="1"/>
+      <path d="M50 10 L56 44 L50 50 L44 44 Z" fill="#c9622a"/>
+      <path d="M50 90 L44 56 L50 50 L56 56 Z" fill="#a89a83"/>
+      <path d="M10 50 L44 44 L50 50 L44 56 Z" fill="#a89a83"/>
+      <path d="M90 50 L56 56 L50 50 L56 44 Z" fill="#a89a83"/>
+      <circle cx="50" cy="50" r="3.5" fill="#e9e1cd"/>
+    </svg>
+    <h1 class="wordmark">Depths<small>&amp;</small>Spires<small>a tile-by-tile expedition</small></h1>
+    <p class="tagline">Draw the dark. Place the tile. Hope it doesn't bite back.</p>
+    <div class="title-actions">
+      <button class="btn primary" data-nav="setup">New Expedition</button>
+      <button class="btn ghost" id="resumeBtn" style="display:none;">Resume Expedition</button>
+      <button class="btn ghost" data-nav="lobby">Play with Friends</button>
+      <button class="btn ghost" data-nav="codex">Bestiary &amp; Armory</button>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section id="screen-setup" class="screen">
+    <div class="eyebrow">Expedition Setup</div>
+    <h2 style="font-size:1.6rem;margin:.3rem 0 1.5rem;">Gather the party</h2>
+
+    <div class="setup-section">
+      <h2>Party size</h2>
+      <div class="pill-row" id="playerCountRow"></div>
+    </div>
+
+    <div class="setup-section">
+      <h2>Who's playing</h2>
+      <div class="pill-row" id="controlRow"></div>
+      <div class="empty-note" id="controlNote" style="margin-top:.5rem;"></div>
+    </div>
+
+    <div class="setup-section">
+      <h2>Mode</h2>
+      <div class="pill-row" id="modeRow"></div>
+    </div>
+
+    <div class="setup-section">
+      <h2>Objective</h2>
+      <div class="pill-row" id="objectiveRow"></div>
+    </div>
+
+    <div class="setup-section">
+      <h2>Adventurers</h2>
+      <div id="playerConfigs"></div>
+    </div>
+
+    <div class="setup-footer">
+      <button class="btn ghost" data-nav="title">&larr; Back</button>
+      <button class="btn primary" id="beginBtn">Descend &rarr;</button>
+    </div>
+  </section>
+
+  <!-- CODEX -->
+  <section id="screen-codex" class="screen">
+    <div class="eyebrow">Reference</div>
+    <h2 style="font-size:1.6rem;margin:.3rem 0 1rem;">Bestiary &amp; Armory</h2>
+    <div class="codex-tabs">
+      <button class="btn small pill active" data-codex="items">Items &amp; Weapons</button>
+      <button class="btn small pill" data-codex="enemies">Enemies</button>
+      <button class="btn small pill" data-codex="traps">Traps</button>
+      <button class="btn small pill" data-codex="classes">Classes</button>
+      <button class="btn small pill" data-codex="tiles">Tiles</button>
+      <button class="btn small pill" data-codex="modules">Modules</button>
+    </div>
+    <div class="codex-grid" id="codexGrid"></div>
+    <div style="margin-top:2rem;"><button class="btn ghost" id="codexBackBtn">&larr; Back</button></div>
+  </section>
+
+  <!-- GAME -->
+  <section id="screen-game" class="screen">
+    <div id="topbar">
+      <div class="tb-title">Depths &amp; Spires</div>
+      <div class="tb-item">Player: <b id="tbPlayer">-</b></div>
+      <div class="tb-item">Round: <b id="tbRound">1</b></div>
+      <div class="tb-item">Level: <b id="tbLevel">1</b></div>
+      <div class="tb-item">Map: <b id="tbMapType">Depth</b></div>
+      <button class="btn small ghost" data-nav="codex">Codex</button>
+    </div>
+    <div id="netBanner"></div>
+    <div id="gameLayout">
+      <aside id="playerPanel"></aside>
+      <div id="mapArea">
+        <div id="mapViewport"><div id="mapStage"><div id="mapInner"></div></div></div>
+        <div id="mapControls">
+          <button class="btn small ghost" id="zoomIn">+</button>
+          <button class="btn small ghost" id="zoomOut">&minus;</button>
+        </div>
+      </div>
+      <aside id="logPanel">
+        <div id="logHeader">
+          <h3>📜 Log</h3>
+          <span id="logPreviewLine"></span>
+          <button class="btn small ghost" id="logToggleBtn">▾</button>
+        </div>
+        <div id="logList"></div>
+      </aside>
+    </div>
+    <div id="turnbar">
+      <span class="mono" id="turnHint" style="color:var(--ink-dim); font-size:.82rem;"></span>
+      <div class="spacer"></div>
+      <div id="turnActions">
+        <button class="btn small ghost" id="useItemBtn">Use Item</button>
+        <button class="btn small primary" id="endTurnBtn">End Turn</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- END -->
+  <section id="screen-end" class="screen">
+    <div>
+      <div class="eyebrow">Expedition Over</div>
+      <h1 class="display" style="font-size:2.4rem; color:var(--gold);" id="endTitle">The Depths Claim You</h1>
+      <p id="endBody" style="color:var(--ink-dim); max-width:520px; margin:1rem auto 2rem;"></p>
+      <button class="btn primary" data-nav="title">Return to Title</button>
+    </div>
+  </section>
+
+  <!-- LOBBY (peer-to-peer) -->
+  <section id="screen-lobby" class="screen">
+    <div style="max-width:640px;margin:0 auto;width:100%;padding:1.5rem 1rem 3rem;">
+      <div class="eyebrow">Peer to Peer</div>
+      <h2 style="font-size:1.6rem;margin:.3rem 0 .4rem;">Play with Friends</h2>
+      <p style="color:var(--ink-dim);font-size:.9rem;margin:0 0 1.5rem;">
+        Runs directly between browsers over WebRTC. One person hosts and runs the game;
+        everyone else connects with the room code. No account, no server of your own.
+      </p>
+
+      <div id="netChoice">
+        <div class="setup-section">
+          <div class="pill-row">
+            <button class="btn primary" id="hostBtn">Host a Room</button>
+            <button class="btn ghost" id="joinToggleBtn">Join a Room</button>
+          </div>
+        </div>
+        <div class="setup-section" id="joinBox" style="display:none;">
+          <h2>Join</h2>
+          <input type="text" id="joinCode" placeholder="Room code"
+            style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+                   padding:.7em;border-radius:3px;font-family:'IBM Plex Mono',monospace;
+                   text-transform:uppercase;margin-bottom:.6rem;">
+          <input type="text" id="joinName" placeholder="Your name"
+            style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+                   padding:.7em;border-radius:3px;margin-bottom:.6rem;">
+          <button class="btn primary" id="joinBtn">Connect</button>
+        </div>
+      </div>
+
+      <div id="netRoom" style="display:none;">
+        <div class="card" style="margin-bottom:1rem;">
+          <div class="cardtype">room code — share this</div>
+          <div id="roomCode" class="mono"
+               style="font-size:1.8rem;letter-spacing:.25em;color:var(--ember-bright);margin:.3em 0;">…</div>
+          <div class="carddesc" id="netStatus">Starting…</div>
+        </div>
+        <div class="panel-subhead">Party</div>
+        <div id="netRoster"></div>
+        <div id="netHostControls" style="display:none;margin-top:1rem;">
+          <div class="setup-section">
+            <h2>Objective</h2>
+            <div class="pill-row" id="netObjectiveRow"></div>
+          </div>
+          <button class="btn primary" id="netStartBtn">Begin Expedition</button>
+        </div>
+        <div id="netClientNote" class="empty-note" style="margin-top:1rem;display:none;">
+          Waiting for the host to start…
+        </div>
+      </div>
+
+      <div style="margin-top:2rem;"><button class="btn ghost" id="netLeaveBtn">&larr; Leave</button></div>
+    </div>
+  </section>
+
+  <div id="modalRoot"><div id="modalBackdrop"></div><div class="modal" id="modalBody"></div></div>
+</div>
+
+<script>
+/* =====================================================================
+   DEPTHS & SPIRES — single-file prototype
+   Sections: DATA -> TILE ART -> STATE -> UTIL -> TILE ENGINE ->
+             DECK/EVENTS -> COMBAT -> RENDER -> SCREENS -> INIT
+   ===================================================================== */
+
+/* ---------------------------- TILE ART ---------------------------- */
+// Base64 tile art, embedded so this stays a single file.
+const TILE_IMAGES = {"Base_tile": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAG40lEQVR4nO3bTU/bShiG4RnbjG01KKz4o0AWCBWBUgnx8UezIREtcSYZ+yysRmfjIyZ4OETPfa2qSNitNDdveUcYAwAAAAAAAAAAAAAAAAAAAAAAjo097Mvm8/lut3PO7Xa7tm27rsuybNy/GfAf2ra11mZZVhSF974oipubmwOeE31qy7I0xjjnsixbrVbWWmPMycnJAe8GDtYfOWvtarXKssw5Z/4ezihF7BdcXl6enp7OZjNjzMvLy+vra1VV3vs8z2MfBRzMe++ca5rm/Pz84uLCGPPw8PD29vbr16+o50RPAOfc/qyv1+uqqtbrdd8f8GWcc/vj13+S5/kB5zB6AuR5vlwu5/O5Mab/X9fT09P7+3vsc4DPCCGcnZ1dXV0ZY/rTuFwu67qOfU70BPDe13XdNM3+ZSEE733sc4DP8N6HEPo/7w/kAecwegL0m5+yLBeLxf39fVVVs9msLMvr6+vYRwEHe35+3mw2j4+PTdMsFovJZNKvJWOfEz0BttutMabruul02rZt39xms4l9DvAZ/ZHz3rdtO51Ou64zfw9nlOgJ0O/7u67bbrfW2hDC3d2dMeb29tZwP4CxDe37+1MXQrDW9ufeWtsv5aOMdjq5H0AKY+37h0RPgCHcDyCFoX3/WM8fbQJwP4AUxtr3DxltAnA/gBSG9v37HegnjTYBuB9ACmPt+4eMNgG4H0AKQ/v+bzcBuB9ACmPt+4eMNgG4H8BnpN73D0l+CrkfwEek3vcPGW0CDOF+AB+Ret8/JPkE4H4AH5F63z8k+QTgfgAfkXrfPyT5BOB+AB+Ret8/JPkE4H4AH5F63z8k+QTgfgAfkXrfPyT5BBi6H/j582fqV+PopNv3D+E2CtIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANKK1C9o29Zam2VZURTe+6Iobm5uUr8UR+f29tYYM5/Pd7udc26327Vt23VdlqX9Hp18ApycnBhjrLWr1SrLMuecMaYsy9TvxXHpj4RzLsuy1WplrTV/D09SySeA99451zTN+fn5xcWFMebh4eHt7S31e3FcLi8vT09PZ7OZMebl5eX19bWqKu99nudJ35t8Ajjn1ut1VVXr9br/JM/zfg4Ae865/VnfH5gvOCfJJ0AI4ezs7Orqyhgzn8+NMcvlsq7rEELqV+OI5Hm+XC77E9L/lPj09PT+/p76vckngPd+f9brum6apq5r733q9+K4eO/3x6P/JITwBeck+QR4fn7ebDaPj49N0ywWi8lk0v+YzwTAv/Wbn7IsF4vF/f19VVWz2awsy+vr66TvTT4BNpuNMcZ737btdDrtus4Ys91uU78Xx6U/El3XTafTtm377/394UlqtAkwtO+/u7szxoQQrLX9P9Ja2y+5gL1+39913Xa7tdaGEPqTk/p+YLQJwL4fKaS+HxhtArDvRwqp7wdGmwDs+5FC6vuB0SYA+36kkPp+YLQJwL4fKaS+HxhtArDvRwqp7wdGmwDs+5FC6vuB6AnAvh9fKfZ+IPr5sV/Avh/fwVj3A9ETgH0/voOh+4HY50RPAPb9+A7Guh+IngDs+/EdjHU/ED0B2PfjOxjrfiB6S1OW5X7f/+fPn8lkEkIoioIJgK+U5/lut8vz/Pfv3z9+/NjfD8RuSKMnAPt+fAf/1+8PAAAAAAAAAAAAAAAAAAAAAACA/98/w0pBNPwXKQIAAAAASUVORK5CYII=", "Corner": "data:image/png;base64,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", "Dead_End": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAHzElEQVR4nO3dW0/bSBiH8Rnb2I4ICld8USAXFBWB0gpx+KK5IRGHOJPY3gur0R4UpGk9xLP/53eJVHs266fv8rpsrfmfur297eU6379/7+U6h3J3d9fLdW5ubnq5ztAkhz4AcEgEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGnZ7/2y2Wy23W7zPN9ut03TtG2bJMNqqfvz68M/59A0TWOtTZIkyzLnXJZl19fXpr+fr+jLvnP68n4aiqIwxuR5niTJcrm01hpjjo6OfuPeQcVyzqHpPiJr7XK5TJIkz3Pz68MclL7O6T0BLi4uTk5OptOpMeb5+fnl5aUsS+dcmqa+lwoqlnMOjXMuz/Oqqs7Ozs7Pz40x9/f3r6+vhz7Xv+07548fP7yu4z0B8jzfPUOr1aosy9Vq1fU3KLGcc2jyPN99XN1X0jQd4OfW1zm9J0CapovFYjabGWO6/+p6fHz8+PjwvU5osZxzaOq6Pj09vby8NMZ0n95isRiNRnVdH/po/7DvnL7X8Z4AzrnRaFRV1e5mdV0753yvE1os5xwa59zuWd99gAP83Po6p/cE6DYqRVHM5/O7u7uyLKfTaVEUV1dXvpcKKpZzDs3T09N6vX54eKiqaj6fj8fjbo02tAmw75y+1/GeAJvNxhjTtu1kMmmapmtuvV77Xie0WM45NN1H5JxrmmYymbRta359mIPS1zm9J0C3R2/bdrPZWGvruu42xEPbu8dyzkP5fN9f17W1tnuerLXdEvl/ec7e/q3HsneP5Zyhqe379/nNN8H/FcvePZZzhhb7vr+v6/c2AWLZu8dyztDU9v379DYBYtm7x3LO0GLf9/d1zt4mQCx791jOGZravn+f3iZALHv3WM4ZWuz7/sFNgFj27rGcMzS1ff8+vU2AWPbuvuc8yCF7xL7/c8Gfwlj27rGc0xf7/s/1NgH2iWXvvu+chz7Xn2Lf/7ngEyCWvXss5/TFvv9zwSdALHv3WM7pi33/54JPgFj27rGc0xf7/s95fzft+38HSNN0u92mafr29nZ8fDzYvfu+c1ZVdeij/ZGyLHd79Pf39/F4XNd1lmVDmwA/f/7s5Zy+f5tl8AkQy949lnP6Yt//ueDfA+zbuw//79/99u3boY/Qg7heZXz9ewmtnwIB/oUAII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AIC0LfYOmaay1SZJkWeacy7Ls+vo69E0RnZubG2PMbDbbbrd5nm+326Zp2rZNkrC/RwefAEdHR8YYa+1yuUySJM9zY0xRFKHvi7h0j0Se50mSLJdLa6359fAEFXwCOOfyPK+q6uzs7Pz83Bhzf3//+voa+r6Iy8XFxcnJyXQ6NcY8Pz+/vLyUZemcS9M06H2DT4A8z1erVVmWq9Wq+0qapt0cAHbyPN8967sH5guek+AToK7r09PTy8tLY8xsNjPGLBaL0WhU13XoWyMiaZouFovuCem+S3x8fPz4+Ah93+ATwDm3e9ZHo1FVVaPRyDkX+r6Ii3Nu93h0X6nr+guek+AT4Onpab1ePzw8VFU1n8/H43H3bT4TAH/XbX6KopjP53d3d2VZTqfToiiurq6C3jf4BFiv18YY51zTNJPJpG1bY8xmswl9X8SleyTatp1MJk3TdL/3dw9PUL1NgH37/tvbW2NMXdfW2u4f0lrbLbmAnW7f37btZrOx1tZ13T05od8P9DYB2PcjhNDvB3qbAOz7EULo9wO9TQD2/Qgh9PuB3iYA+36EEPr9QG8TgH0/Qgj9fqC3CcC+HyGEfj/Q2wRg348QQr8f8J4A7PvxlXzfD3hf3/cXsO/HEPT1fsB7ArDvxxDsez/gex3vCcC+H0PQ1/sB7wnAvh9D0Nf7Ae8JwL4fQ9DX+wHvLU1RFLt9//v7+3g8rus6yzImAL5Smqbb7TZN07e3t+Pj4937Ad8NqfcEYN+PITjUzw8AAAAAAAAAAAAAAAAAAAAAAIDD+wtDGWfopaztKQAAAABJRU5ErkJggg==", "Fourway": "data:image/png;base64,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", "Hallway": "data:image/png;base64,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", "Threeway": "data:image/png;base64,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"};
+
+/* ---------------------------- DATA ---------------------------- */
+const DIRS = ['N','E','S','W'];
+const DIR_VEC = { N:[0,-1], E:[1,0], S:[0,1], W:[-1,0] };
+const OPP = { N:'S', S:'N', E:'W', W:'E' };
+const DIR_LABEL = { N:'north', E:'east', S:'south', W:'west' };
+
+// edges order = [N,E,S,W], true = opening
+const TILE_DEFS = {
+  base:     { img:'Base_tile', edges:[false,false,false,false], label:'Sealed Chamber' },
+  deadend:  { img:'Dead_End',  edges:[true,false,false,false],  label:'Dead End' },
+  corner:   { img:'Corner',    edges:[true,false,false,true],   label:'Corner' },
+  hallway:  { img:'Hallway',   edges:[true,false,true,false],   label:'Hallway' },
+  threeway: { img:'Threeway',  edges:[true,true,false,true],    label:'Threeway' },
+  fourway:  { img:'Fourway',   edges:[true,true,true,true],     label:'Fourway' },
+};
+
+const DECK_COMPOSITION = { deadend:6, corner:10, hallway:10, threeway:8, fourway:4 };
+
+const CLASS_DEFS = {
+  warrior: {
+    name:'Warrior', icon:'⚔️', maxHp:22, def:13, atkMod:2, dmg:'1d8', mechanic:'might',
+    desc:"Squares up and swings hard. Rolls two dice on every attack and keeps the higher — steady, dependable damage.",
+    tagline:'Roll twice, keep the best.'
+  },
+  archer: {
+    name:'Archer', icon:'🏹', maxHp:15, def:10, atkMod:1, dmg:'1d6', mechanic:'twoshots',
+    desc:"Looses an arrow from range first. If it misses, follows up with a hurried, less accurate close shot.",
+    tagline:'Two shots: one long, one desperate.'
+  },
+  thief: {
+    name:'Thief', icon:'🗡️', maxHp:13, def:11, atkMod:1, dmg:'1d6', mechanic:'shadow',
+    desc:"Checks for an opening before striking. A successful stealth check multiplies the damage of the hit that follows.",
+    tagline:'Vanish, then strike true.'
+  },
+};
+
+/* Core content pack. This uses the EXACT same schema as JSON add-on modules,
+   so anything expressible here is expressible in a module file (and vice
+   versa). `uses: -1` means an equipped/unlimited item — JSON has no Infinity,
+   so -1 is the wire format and gets normalised internally.
+
+   effects[]  : applied when the player actively uses the item
+   onHit[]    : applied automatically when the holder lands a hit
+   usableIn[] : "combat", "explore", or both — gates where it can be used  */
+const CORE_ITEMS = [
+  { id:'throwing_stars', name:'Throwing Stars', type:'weapon', cls:'thief', uses:3, icon:'⭐', usableIn:['combat'],
+    desc:'A trio of balanced blades. Spend one to strike before an enemy can close in.',
+    effects:[{ kind:'damage', target:'enemy', amount:'1d6', free:true }] },
+  { id:'fireball_scroll', name:'Scroll of Fireball', type:'consumable', cls:null, uses:1, icon:'🔥', usableIn:['combat'],
+    desc:'Unleash a burst of flame for 2d6 damage. No roll required — it simply hits.',
+    effects:[{ kind:'damage', target:'enemy', amount:'2d6' }] },
+  { id:'clairvoyant', name:'Clairvoyant Lens', type:'artifact', cls:null, uses:1, icon:'🔮', usableIn:['explore'],
+    desc:'Peer at the next three tiles waiting in the deck and choose which one is drawn next.',
+    effects:[{ kind:'deckPeek', count:3 }] },
+  { id:'bloodletter', name:'Bloodletter Daggers', type:'weapon', cls:'thief', uses:-1, icon:'🩸',
+    desc:'Wicked twin daggers. A successful hit opens a wound that bleeds for two more rounds.',
+    onHit:[{ kind:'status', status:'bleed', target:'enemy', duration:2 }] },
+  { id:'lightning_saber', name:'Lightning Saber', type:'weapon', cls:'warrior', uses:-1, icon:'⚡',
+    desc:'A humming enchanted blade. A solid hit may shock the enemy, stunning their next attack.',
+    onHit:[{ kind:'status', status:'stun', target:'enemy', duration:1, chance:0.4 }] },
+  { id:'frost_bow', name:'Frost Bow', type:'weapon', cls:'archer', uses:-1, icon:'❄️',
+    desc:'Arrows rimed with unnatural frost. A hit may freeze the enemy in place for a turn.',
+    onHit:[{ kind:'status', status:'freeze', target:'enemy', duration:1, chance:0.4 }] },
+  { id:'minor_potion', name:'Minor Healing Draught', type:'consumable', cls:null, uses:1, icon:'🧪', usableIn:['combat','explore'],
+    desc:'A bitter tonic that mends 2d4+2 HP when drunk.',
+    effects:[{ kind:'heal', amount:'2d4+2' }] },
+  { id:'lucky_coin', name:'Lucky Coin', type:'trinket', cls:null, uses:1, icon:'🪙', usableIn:['combat','explore'],
+    desc:'Flip it for a surge of luck — your next roll this fight is made with advantage.',
+    effects:[{ kind:'roll', mode:'advantage', duration:2 }] },
+];
+
+const CORE_ENEMIES = [
+  { id:'skeleton', name:'Skeleton Sentinel', hp:10, def:10, dmg:'1d6', icon:'💀',
+    flavor:'Bones held together by old magic and older grudges.' },
+  { id:'spider', name:'Giant Cave Spider', hp:8, def:12, dmg:'1d4', icon:'🕷️', special:'poison',
+    flavor:'Fast, skittering, and venomous. A bite lingers.' },
+  { id:'ghoul', name:'Rot Ghoul', hp:14, def:9, dmg:'1d8', icon:'🧟',
+    flavor:'Slow, relentless, and always hungry.' },
+  { id:'shade', name:'Shade Assassin', hp:9, def:14, dmg:'1d6', icon:'🥷',
+    flavor:'A sliver of darkness with a blade. Hard to pin down.' },
+  { id:'warden', name:'The Warden of the Deep', hp:40, def:13, dmg:'2d6', icon:'👹', boss:true,
+    flavor:"The old guardian of the lowest spire. Legends disagree on what it's guarding." },
+];
+
+const CORE_TRAPS = [
+  { id:'spikes', name:'Spike Pit', dmg:'1d6', dc:12, icon:'🕳️', flavor:'The floor gives way to a bed of iron teeth.' },
+  { id:'poison_dart', name:'Poison Dart Trap', dmg:'1d4', dc:11, icon:'🎯', flavor:'A pressure plate clicks. Something whistles past.' },
+  { id:'arrow', name:'Arrow Trap', dmg:'1d8', dc:13, icon:'🏹', flavor:'A hidden mechanism looses a bolt from the wall.' },
+  { id:'collapse', name:'Collapsing Floor', dmg:'1d10', dc:14, icon:'⚠️', flavor:'The stones beneath your feet crumble away.' },
+];
+
+/* ============================ CONTENT REGISTRY ============================
+   Live content the game reads from. Core packs are loaded first, then any
+   JSON add-on modules are merged in on top. Nothing else in the codebase
+   references the CORE_* arrays directly — they all go through here, so a
+   module can add to (or override, by reusing an id) any of it. */
+const CONTENT = { items:[], enemies:[], traps:[] };
+const LOADED_MODULES = [];   // { name, version, author, counts, source }
+const MODULE_ERRORS = [];    // { source, message }
+
+// -1 / "equip" / null in JSON all mean "unlimited use while held"
+function normalizeUses(u){
+  if(u===undefined || u===null || u===-1 || u==='equip' || u==='infinite') return Infinity;
+  return u;
+}
+function registerContent(pack, sourceLabel){
+  const counts = { items:0, enemies:0, traps:0 };
+  for(const kind of ['items','enemies','traps']){
+    const list = pack[kind];
+    if(!Array.isArray(list)) continue;
+    for(const def of list){
+      const entry = Object.assign({}, def, { _source: sourceLabel });
+      if(kind==='items') entry.uses = normalizeUses(def.uses);
+      const existing = CONTENT[kind].findIndex(d=>d.id===entry.id);
+      if(existing>-1) CONTENT[kind][existing] = entry;  // same id overrides
+      else CONTENT[kind].push(entry);
+      counts[kind]++;
+    }
+  }
+  return counts;
+}
+function loadCoreContent(){
+  CONTENT.items.length = 0; CONTENT.enemies.length = 0; CONTENT.traps.length = 0;
+  registerContent({ items:CORE_ITEMS, enemies:CORE_ENEMIES, traps:CORE_TRAPS }, 'core');
+}
+
+const TROPHY_ICONS = { skeleton:'💀', spider:'🕸️', ghoul:'🦷', shade:'👁️', warden:'👑' };
+
+/* ---------------------------- STATE ---------------------------- */
+let STATE = null; // built in newGame()
+
+/* ---------------------------- UTIL ---------------------------- */
+function rollDie(sides){ return 1 + Math.floor(Math.random()*sides); }
+function rollExpr(expr){
+  const m = String(expr).match(/(\d+)d(\d+)([+-]\d+)?/);
+  if(!m) return { total:0, detail:expr };
+  const n = +m[1], sides = +m[2], mod = m[3] ? +m[3] : 0;
+  let rolls = [];
+  for(let i=0;i<n;i++) rolls.push(rollDie(sides));
+  const total = rolls.reduce((a,b)=>a+b,0) + mod;
+  return { total, detail: `${rolls.join('+')}${mod?(mod>0?'+'+mod:mod):''} = ${total}` };
+}
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function weightedPick(pairs){ // [[item,weight],...]
+  const total = pairs.reduce((a,p)=>a+p[1],0);
+  let r = Math.random()*total;
+  for(const [item,w] of pairs){ if(r<w) return item; r-=w; }
+  return pairs[pairs.length-1][0];
+}
+function key(x,y){ return x+','+y; }
+function el(tag, cls, html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; }
+function findItemDef(id){ return CONTENT.items.find(i=>i.id===id); }
+function findEnemyDef(id){ return CONTENT.enemies.find(e=>e.id===id); }
+function findTrapDef(id){ return CONTENT.traps.find(t=>t.id===id); }
+
+/* ========================= STATS & EFFECT ENGINE =========================
+   Every attribute an item can touch is read through getStat(), so a buff
+   from any source (core item, JSON module, class, status) stacks the same
+   way and expires the same way. Base values come from the class; buffs are
+   timed modifiers living on the player. */
+// Actions each character gets per round. 3 lets a character reposition and
+// still explore twice, which keeps a party turn feeling productive rather
+// than spent on walking. Items/modules can raise it via the "apMax" stat.
+const BASE_AP = 3;
+
+function getStat(p, stat){
+  let base;
+  switch(stat){
+    case 'atkMod': base = CLASS_DEFS[p.cls].atkMod; break;
+    case 'def':    base = CLASS_DEFS[p.cls].def; break;
+    case 'maxHp':  base = CLASS_DEFS[p.cls].maxHp; break;
+    case 'apMax':  base = BASE_AP; break;
+    case 'dmgMult':base = 1; break;
+    default:       base = 0;
+  }
+  const bonus = (p.buffs||[]).filter(b=>b.stat===stat).reduce((a,b)=>a+b.amount,0);
+  return base + bonus;
+}
+function addBuff(p, stat, amount, duration){
+  p.buffs = p.buffs || [];
+  p.buffs.push({ stat, amount, roundsLeft: (duration===undefined||duration===null) ? Infinity : duration });
+}
+// Called at the end of each player's turn: timed buffs count down and expire.
+function tickBuffs(p){
+  if(!p.buffs) return;
+  p.buffs.forEach(b=>{ if(b.roundsLeft!==Infinity) b.roundsLeft--; });
+  p.buffs = p.buffs.filter(b=>b.roundsLeft>0);
+}
+function hasRollMode(p, mode){
+  return (p.buffs||[]).some(b=>b.stat==='roll:'+mode);
+}
+function consumeRollMode(p, mode){
+  const i = (p.buffs||[]).findIndex(b=>b.stat==='roll:'+mode);
+  if(i>-1) p.buffs.splice(i,1);
+}
+
+/* Applies a list of effect objects. `ctx` carries optional combat context so
+   the same effect list works in and out of battle. Returns log-ready text. */
+function applyEffects(effects, p, ctx){
+  ctx = ctx || {};
+  const notes = [];
+  for(const e of (effects||[])){
+    if(typeof e.chance === 'number' && Math.random() > e.chance) continue;
+    switch(e.kind){
+      case 'heal': {
+        const r = rollExpr(e.amount);
+        const before = p.hp;
+        p.hp = Math.min(getStat(p,'maxHp'), p.hp + r.total);
+        notes.push(`restores ${p.hp-before} HP`);
+        break;
+      }
+      case 'damage': {
+        const r = rollExpr(e.amount);
+        if(e.target==='enemy' && ctx.combat){
+          ctx.combat.enemyHp -= r.total;
+          notes.push(`deals ${r.total} damage`);
+        } else {
+          p.hp = Math.max(0, p.hp - r.total);
+          if(p.hp<=0) p.alive = false;
+          notes.push(`takes ${r.total} damage`);
+        }
+        break;
+      }
+      case 'buff': {
+        addBuff(p, e.stat, e.amount, e.duration);
+        const sign = e.amount>0?'+':'';
+        notes.push(`${sign}${e.amount} ${e.stat}${e.duration?` for ${e.duration} round(s)`:''}`);
+        break;
+      }
+      case 'ap': {
+        p.ap = Math.max(0, (p.ap||0) + e.amount);
+        notes.push(`${e.amount>0?'+':''}${e.amount} action(s)`);
+        break;
+      }
+      case 'roll': {
+        addBuff(p, 'roll:'+e.mode, e.amount||1, e.duration);
+        notes.push(`next roll(s) gain ${e.mode}`);
+        break;
+      }
+      case 'status': {
+        if(e.target==='enemy' && ctx.combat){
+          ctx.combat.enemyStatus = ctx.combat.enemyStatus || {};
+          ctx.combat.enemyStatus[e.status] = (e.duration||1);
+          notes.push(`enemy is ${e.status}`);
+        } else {
+          p.statusEffects[e.status] = (e.duration||1);
+          notes.push(`you are ${e.status}`);
+        }
+        break;
+      }
+      case 'cure': {
+        if(e.status==='all'){ p.statusEffects = {}; notes.push('all ailments cured'); }
+        else { delete p.statusEffects[e.status]; notes.push(`${e.status} cured`); }
+        break;
+      }
+      case 'deckPeek': {
+        ctx.deckPeek = e.count || 3;
+        notes.push(`peers ${e.count||3} tiles ahead`);
+        break;
+      }
+      case 'teleport': {
+        if(e.mode==='start'){ p.x=0; p.y=0; notes.push('is pulled back to the entrance'); }
+        else {
+          const spots = [...STATE.grid.values()].filter(t=>!t.isWall);
+          const spot = pick(spots);
+          if(spot){ p.x=spot.x; p.y=spot.y; notes.push('is displaced elsewhere on the level'); }
+        }
+        break;
+      }
+      default:
+        notes.push(`(unknown effect "${e.kind}" ignored)`);
+    }
+  }
+  return notes.join(', ');
+}
+
+/* Where can this item be used right now? Weapons with only onHit are passive. */
+function itemUsableIn(def, where){
+  if(!def.effects || def.effects.length===0) return false;
+  const zones = def.usableIn || ['combat','explore'];
+  return zones.includes(where);
+}
+
+/* ============================ MODULE LOADER ============================
+   Add-on content ships as JSON. Two ways in, both avoiding edits to this
+   file: fetch from a mods/ folder when served over http(s), or import a
+   file / paste JSON from the Codex at runtime (works offline too). */
+function validateModule(pack){
+  const errs = [];
+  if(typeof pack !== 'object' || pack===null) { errs.push('module must be a JSON object'); return errs; }
+  const hasAny = ['items','enemies','traps'].some(k=>Array.isArray(pack[k]) && pack[k].length);
+  if(!hasAny) errs.push('module has no items, enemies, or traps arrays');
+  for(const kind of ['items','enemies','traps']){
+    if(pack[kind]===undefined) continue;
+    if(!Array.isArray(pack[kind])){ errs.push(`"${kind}" must be an array`); continue; }
+    pack[kind].forEach((d,i)=>{
+      if(!d || typeof d!=='object'){ errs.push(`${kind}[${i}] is not an object`); return; }
+      if(!d.id) errs.push(`${kind}[${i}] is missing "id"`);
+      if(!d.name) errs.push(`${kind}[${i}] (${d.id||'?'}) is missing "name"`);
+      if(kind==='items'){
+        for(const key of ['effects','onHit']){
+          if(d[key]!==undefined && !Array.isArray(d[key])) errs.push(`${kind}[${i}] "${key}" must be an array`);
+          (Array.isArray(d[key])?d[key]:[]).forEach((e,j)=>{
+            if(!e || !e.kind) errs.push(`${kind}[${i}] ${key}[${j}] is missing "kind"`);
+          });
+        }
+      }
+      if(kind==='enemies' && (d.hp===undefined || d.dmg===undefined)) errs.push(`enemies[${i}] (${d.id||'?'}) needs "hp" and "dmg"`);
+      if(kind==='traps' && (d.dmg===undefined || d.dc===undefined)) errs.push(`traps[${i}] (${d.id||'?'}) needs "dmg" and "dc"`);
+    });
+  }
+  return errs;
+}
+function installModule(pack, sourceLabel){
+  const errs = validateModule(pack);
+  if(errs.length){
+    MODULE_ERRORS.push({ source: sourceLabel, message: errs.join('; ') });
+    return { ok:false, errors:errs };
+  }
+  const counts = registerContent(pack, pack.name || sourceLabel);
+  LOADED_MODULES.push({
+    name: pack.name || sourceLabel, version: pack.version || '—',
+    author: pack.author || '—', counts, source: sourceLabel,
+  });
+  return { ok:true, counts };
+}
+// Fetch mods/manifest.json, then each module it lists. Silently no-ops when
+// running from file:// (no server) — imports still work in that case.
+async function loadModulesFromFolder(){
+  try{
+    const res = await fetch('mods/manifest.json', { cache:'no-store' });
+    if(!res.ok) return;
+    const manifest = await res.json();
+    const files = Array.isArray(manifest) ? manifest : (manifest.modules || []);
+    for(const file of files){
+      try{
+        const r = await fetch('mods/'+file, { cache:'no-store' });
+        if(!r.ok){ MODULE_ERRORS.push({ source:file, message:`HTTP ${r.status}` }); continue; }
+        installModule(await r.json(), file);
+      }catch(err){ MODULE_ERRORS.push({ source:file, message:String(err && err.message || err) }); }
+    }
+  }catch(err){ /* no manifest / offline / file:// — expected, not an error */ }
+}
+
+/* ---------------------------- TILE ENGINE ---------------------------- */
+function rotateEdges(edges){ // 90deg clockwise: newN=oldW, newE=oldN, newS=oldE, newW=oldS
+  return [edges[3], edges[0], edges[1], edges[2]];
+}
+function edgesForRotation(type, rot){
+  let e = TILE_DEFS[type].edges.slice();
+  for(let i=0;i<rot;i++) e = rotateEdges(e);
+  return e;
+}
+// Reads the *effective* edges for a placed tile instance: a wall-stub (a
+// tile that failed to fit) is always closed on every side; everything else
+// uses its real, honest edges — what you see is what connects.
+function tileEdges(tile){
+  if(tile.isWall) return [false,false,false,false];
+  return edgesForRotation(tile.type, tile.rot);
+}
+function neighborCoord(x,y,dir){ const [dx,dy]=DIR_VEC[dir]; return [x+dx, y+dy]; }
+
+function openExits(x,y){
+  const tile = STATE.grid.get(key(x,y));
+  if(!tile) return [];
+  const edges = tileEdges(tile);
+  const edgeMap = { N:edges[0], E:edges[1], S:edges[2], W:edges[3] };
+  return DIRS.filter(d=>edgeMap[d]);
+}
+function unexploredExits(x,y){
+  return openExits(x,y).filter(d=>{
+    const [nx,ny] = neighborCoord(x,y,d);
+    return !STATE.grid.has(key(nx,ny));
+  });
+}
+// A connection exists only when BOTH tiles have an opening facing each other.
+// Checking only "does a neighbor exist" let players walk into solid cells and
+// strand themselves with no exits — a hard freeze.
+function exploredConnectedNeighbors(x,y){
+  return openExits(x,y).filter(d=>{
+    const [nx,ny] = neighborCoord(x,y,d);
+    const neighbor = STATE.grid.get(key(nx,ny));
+    if(!neighbor) return false;
+    const nEdges = tileEdges(neighbor);
+    const nMap = { N:nEdges[0], E:nEdges[1], S:nEdges[2], W:nEdges[3] };
+    return !!nMap[OPP[d]];
+  });
+}
+
+/* ---------------------------- DECK ---------------------------- */
+function freshDeck(){
+  let d = [];
+  for(const [type,count] of Object.entries(DECK_COMPOSITION)){
+    for(let i=0;i<count;i++) d.push(type);
+  }
+  return shuffle(d);
+}
+function drawTileType(){
+  if(STATE.deck.length===0){
+    STATE.deck = freshDeck();
+    log('The tile deck is reshuffled.', 'system');
+  }
+  return STATE.deck.pop();
+}
+// The entrance to each level: a real tile, randomly typed and randomly
+// rotated, using its true edges — no special-cased "always open" start tile,
+// so what you see at the entrance is exactly what connects.
+function pickStartTile(){
+  const pool = ['deadend','corner','hallway','threeway','fourway'];
+  return { type: pick(pool), rot: Math.floor(Math.random()*4) };
+}
+
+/* ---------------------------- LOG ---------------------------- */
+function log(msg, kind){
+  STATE.logEntries.unshift({ msg, kind: kind||'system' });
+  if(STATE.logEntries.length>60) STATE.logEntries.length = 60;
+  renderLog();
+}
+
+/* ---------------------------- GAME SETUP ---------------------------- */
+function newGame(config){
+  STATE = {
+    config,
+    players: config.players.map((p,i)=>({
+      id:i, name:p.name, cls:p.cls,
+      hp:CLASS_DEFS[p.cls].maxHp, maxHp:CLASS_DEFS[p.cls].maxHp,
+      def:CLASS_DEFS[p.cls].def,
+      x:0, y:0,
+      items:[], trophies:[], statusEffects:{}, buffs:[], alive:true,
+      ap:BASE_AP,
+    })),
+    activeIndex:0,
+    round:1,
+    level:1,
+    mapType: Math.random()<0.5 ? 'Depth' : 'Spire',
+    grid: new Map(),
+    deck: freshDeck(),
+    logEntries: [],
+    tilesExploredThisLevel:0,
+    bossSpawned:false,
+    treasureFound:false,
+    zoom:1,
+    over:false,
+  };
+  STATE.players.forEach(p=>{ p.ap = getStat(p,'apMax'); });
+  const start = pickStartTile();
+  STATE.grid.set(key(0,0), { type:start.type, rot:start.rot, x:0, y:0, event:null, resolved:true, stairs:false });
+  log(`The party descends into the ${STATE.mapType.toLowerCase()}. Level 1 begins.`, 'system');
+  logEntranceDescription(0,0);
+  goto('game');
+  initLogCollapseDefault();
+  renderAll();
+}
+
+function logEntranceDescription(x,y){
+  const n = unexploredExits(x,y).length;
+  if(n<=1) log(`The entrance is a narrow one — a single way forward.`, 'system');
+  else log(`The entrance opens ${n} ways forward.`, 'system');
+}
+
+function activePlayer(){ return STATE.players[STATE.activeIndex]; }
+function isSoloParty(){ return STATE.config.control === 'solo'; }
+
+// Spend an action. Everything that costs AP funnels through here so items
+// that grant or refund actions work uniformly.
+function spendAP(p, n){
+  p.ap = Math.max(0, (p.ap||0) - (n===undefined?1:n));
+}
+function hasAP(p){ return (p.ap||0) > 0; }
+
+/* In solo-party mode the player drives every character, so they can switch
+   to any party member that still has actions left. */
+function switchToPlayer(idx){
+  if(!isSoloParty()) return;
+  const target = STATE.players[idx];
+  if(!target || !target.alive) return;
+  if(PENDING_PLACEMENT) return;   // resolve the drawn tile first
+  STATE.activeIndex = idx;
+  renderAll();
+}
+
+// Ends the whole party round: refresh everyone's actions, expire timed buffs.
+function endPartyRound(){
+  STATE.players.forEach(p=>{
+    tickBuffs(p);
+    p.ap = getStat(p,'apMax');
+  });
+  STATE.round++;
+  const first = STATE.players.findIndex(p=>p.alive);
+  STATE.activeIndex = first>-1 ? first : 0;
+  log(`Round ${STATE.round} — the party catches its breath.`, 'system');
+}
+
+function nextTurn(){
+  const alive = STATE.players.filter(p=>p.alive);
+  if(alive.length===0){ endGame(false, 'The whole party has fallen. The depths keep their secrets.'); return; }
+
+  if(isSoloParty()){
+    // One controller: "End Turn" means end this character's turn and hand off
+    // to the next party member who still has actions; when nobody does, the
+    // round rolls over.
+    const next = STATE.players.findIndex(p=>p.alive && hasAP(p) && p!==activePlayer());
+    activePlayer().ap = 0;
+    const stillGoing = STATE.players.findIndex(p=>p.alive && hasAP(p));
+    if(stillGoing>-1) STATE.activeIndex = stillGoing;
+    else endPartyRound();
+    renderAll();
+    return;
+  }
+
+  // Hotseat: pass the device to the next living player.
+  tickBuffs(activePlayer());
+  let i = STATE.activeIndex;
+  do{
+    i = (i+1) % STATE.players.length;
+  } while(!STATE.players[i].alive);
+  if(i <= STATE.activeIndex) STATE.round++;
+  STATE.activeIndex = i;
+  STATE.players[i].ap = getStat(STATE.players[i],'apMax');
+  renderAll();
+}
+
+/* ---------------------------- EXPLORE / MOVE ---------------------------- */
+let PENDING_PLACEMENT = null;
+
+function tryExplore(dir){
+  const p = activePlayer();
+  const exits = unexploredExits(p.x,p.y);
+  if(!exits.includes(dir)) return;
+  if(!hasAP(p)){ log(`${p.name} is out of actions this round.`, 'system'); renderTurnbar(); return; }
+  const [nx,ny] = neighborCoord(p.x,p.y,dir);
+  const needsOpen = OPP[dir];
+  let type = drawTileType();
+
+  if(STATE.pendingClairvoyance){
+    type = STATE.pendingClairvoyance;
+    STATE.pendingClairvoyance = null;
+  }
+
+  PENDING_PLACEMENT = { dir, nx, ny, needsOpen, type, rot: bestDefaultRotation(type, nx, ny, needsOpen) };
+  renderAll();
+}
+
+// Which sides of a candidate tile (at a given rotation) would conflict with
+// tiles already on the board. Empty array = perfect fit, every edge lines up.
+function getPlacementConflicts(type, x, y, rot){
+  const edges = edgesForRotation(type, rot);
+  const edgeMap = { N:edges[0], E:edges[1], S:edges[2], W:edges[3] };
+  const conflicts = [];
+  for(const dir of DIRS){
+    const [nx,ny] = neighborCoord(x,y,dir);
+    const neighbor = STATE.grid.get(key(nx,ny));
+    if(!neighbor) continue;
+    const neighborEdgeMap = { N:tileEdges(neighbor)[0], E:tileEdges(neighbor)[1], S:tileEdges(neighbor)[2], W:tileEdges(neighbor)[3] };
+    if(edgeMap[dir] !== neighborEdgeMap[OPP[dir]]) conflicts.push(dir);
+  }
+  return conflicts;
+}
+// Is the entry side (the edge facing the tile the player is standing on)
+// open at this rotation? If not, there'd be no way to walk in.
+function entryIsOpen(type, rot, needsOpenDir){
+  const edges = edgesForRotation(type, rot);
+  const map = { N:edges[0], E:edges[1], S:edges[2], W:edges[3] };
+  return !!map[needsOpenDir];
+}
+// Best default: entry open, and as few mismatched sides as possible.
+function bestDefaultRotation(type, x, y, needsOpenDir){
+  let best = null, bestScore = Infinity;
+  for(let r=0;r<4;r++){
+    if(!entryIsOpen(type, r, needsOpenDir)) continue;
+    const score = getPlacementConflicts(type,x,y,r).length;
+    if(score < bestScore){ bestScore = score; best = r; }
+  }
+  if(best!==null) return best;
+  for(let r=0;r<4;r++){ if(entryIsOpen(type,r,needsOpenDir)) return r; }
+  return 0;
+}
+
+function rotatePending(){
+  if(!PENDING_PLACEMENT) return;
+  PENDING_PLACEMENT.rot = (PENDING_PLACEMENT.rot+1)%4;
+  renderMap();
+  renderTurnbar();
+}
+
+function confirmPlacement(){
+  const pp = PENDING_PLACEMENT;
+  if(!pp) return;
+  const p = activePlayer();
+  // The entry side must be open or there's no way to walk in. Everything else
+  // is allowed: a mismatched side just becomes a wall that doesn't connect,
+  // which is what a real tile laid against an existing wall would do.
+  if(!entryIsOpen(pp.type, pp.rot, pp.needsOpen)){
+    log(`That rotation has no opening facing ${p.name} — rotate it first.`, 'system');
+    renderTurnbar();
+    return;
+  }
+  const conflicts = getPlacementConflicts(pp.type, pp.nx, pp.ny, pp.rot)
+    .filter(d => d !== pp.needsOpen);
+
+  const tile = { type:pp.type, rot:pp.rot, x:pp.nx, y:pp.ny, event:null, resolved:false, stairs:false };
+  STATE.grid.set(key(pp.nx,pp.ny), tile);
+  p.x = pp.nx; p.y = pp.ny;
+  spendAP(p);
+  STATE.tilesExploredThisLevel++;
+  log(`${p.name} explores ${DIR_LABEL[pp.dir]} and places a ${TILE_DEFS[pp.type].label.toLowerCase()}.`, 'system');
+  if(conflicts.length){
+    log(`Its ${conflicts.map(d=>DIR_LABEL[d]).join(' and ')} side${conflicts.length>1?'s':''} butt${conflicts.length>1?'':'s'} against solid rock — no passage that way.`, 'system');
+  }
+
+  // A stairway appears when there's nowhere left to explore from here.
+  if(unexploredExits(pp.nx,pp.ny).length===0){
+    tile.stairs = true;
+    log(`It's a dead end — a stairway lies here.`, 'system');
+  }
+  PENDING_PLACEMENT = null;
+  resolveEvent(tile);
+}
+
+function tryMove(dir){
+  const p = activePlayer();
+  const exits = exploredConnectedNeighbors(p.x,p.y);
+  if(!exits.includes(dir)) return;
+  if(!hasAP(p)){ log(`${p.name} is out of actions this round.`, 'system'); renderTurnbar(); return; }
+  const [nx,ny] = neighborCoord(p.x,p.y,dir);
+  p.x = nx; p.y = ny;
+  spendAP(p);
+  log(`${p.name} moves ${DIR_LABEL[dir]}.`, 'system');
+  renderAll();
+}
+
+/* Escape hatch. Nothing in the current rules should be able to strand a
+   character, but if anything ever does, this guarantees the game continues. */
+function retreatToEntrance(){
+  const p = activePlayer();
+  p.x = 0; p.y = 0;
+  spendAP(p);
+  log(`${p.name} backtracks all the way to the entrance.`, 'system');
+  renderAll();
+}
+
+function useStairs(){
+  const p = activePlayer();
+  const tile = STATE.grid.get(key(p.x,p.y));
+  if(!tile || !tile.stairs) return;
+  STATE.level++;
+  STATE.mapType = STATE.mapType==='Depth' ? 'Spire' : (Math.random()<0.5?'Depth':'Spire');
+  STATE.grid = new Map();
+  const start = pickStartTile();
+  STATE.grid.set(key(0,0), { type:start.type, rot:start.rot, x:0, y:0, event:null, resolved:true, stairs:false });
+  STATE.tilesExploredThisLevel = 0;
+  for(const pl of STATE.players){ pl.x=0; pl.y=0; pl.ap=getStat(pl,'apMax'); }
+  log(`The party takes the stairs. Level ${STATE.level} begins — a new ${STATE.mapType.toLowerCase()} unfolds.`, 'system');
+  logEntranceDescription(0,0);
+  renderAll();
+}
+
+/* ---------------------------- EVENTS ---------------------------- */
+function maybeSpawnBossCheck(){ /* placeholder hook for future boss pacing tweaks */ }
+
+function resolveEvent(tile){
+  if(tile.type==='base'){ tile.resolved=true; renderAll(); return; }
+
+  let table = [['none',15],['enemy',28],['trap',20],['loot',25],['enemy_loot',7],['trap_loot',5]];
+
+  if(STATE.config.objective==='boss' && !STATE.bossSpawned && STATE.tilesExploredThisLevel>=8 && Math.random()<0.22){
+    tile.event = { kind:'enemy', enemyId:'warden' };
+    STATE.bossSpawned = true;
+    tile.resolved = false;
+    log(`A monstrous presence stirs ahead...`, 'combat');
+    renderAll();
+    openCombatModal(tile);
+    return;
+  }
+
+  const kind = weightedPick(table);
+  if(kind==='none'){ tile.event={kind:'none'}; tile.resolved=true; log('The chamber is empty. Quiet, for now.', 'system'); renderAll(); return; }
+
+  if(kind==='enemy' || kind==='enemy_loot'){
+    const pool = CONTENT.enemies.filter(e=>!e.boss);
+    const enemyDef = pick(pool);
+    tile.event = { kind:'enemy', enemyId:enemyDef.id, thenLoot: kind==='enemy_loot' };
+    tile.resolved = false;
+    log(`A ${enemyDef.name} blocks the way!`, 'combat');
+    renderAll();
+    openCombatModal(tile);
+    return;
+  }
+  if(kind==='trap' || kind==='trap_loot'){
+    const trapDef = pick(CONTENT.traps);
+    tile.event = { kind:'trap', trapId:trapDef.id, thenLoot: kind==='trap_loot' };
+    tile.resolved = false;
+    log(`${trapDef.name}!`, 'trap');
+    renderAll();
+    openTrapModal(tile);
+    return;
+  }
+  if(kind==='loot'){
+    grantLoot(tile);
+    return;
+  }
+}
+
+function grantLoot(tile){
+  const p = activePlayer();
+  if(STATE.config.objective==='treasure' && !STATE.treasureFound && Math.random()<0.10){
+    STATE.treasureFound = true;
+    log(`${p.name} uncovers the lost treasure! The expedition's goal is complete.`, 'loot');
+    tile.event = { kind:'loot', treasure:true }; tile.resolved = true;
+    renderAll();
+    endGame(true, `${p.name} (${CLASS_DEFS[p.cls].name}) recovered the lost treasure and claims victory!`);
+    return;
+  }
+  // Modules can set "rarity" (higher = more common). Default 1 = even odds.
+  const itemDef = weightedPick(CONTENT.items.map(d=>[d, d.rarity || 1]));
+  p.items.push({ id:itemDef.id, usesLeft: normalizeUses(itemDef.uses) });
+  tile.event = { kind:'loot', itemId:itemDef.id }; tile.resolved = true;
+  log(`${p.name} finds ${itemDef.name} ${itemDef.icon||'📦'}.`, 'loot');
+  renderAll();
+  showLootModal(itemDef);
+}
+
+function showLootModal(itemDef){
+  const b = document.getElementById('modalBody');
+  b.innerHTML = `
+    <h2>💰 Loot Found</h2>
+    <div class="modal-sub">Tucked into the room...</div>
+    <div class="card item-weapon" style="margin:0 0 .3rem;">
+      <div class="cardtype">${itemDef.type}${itemDef.cls?' · '+CLASS_DEFS[itemDef.cls].name:''}</div>
+      <div class="cardicon">${itemDef.icon}</div>
+      <div class="cardname">${itemDef.name}</div>
+      <div class="carddesc">${itemDef.desc}</div>
+    </div>
+    <div class="modal-actions"><button class="btn primary" id="lootContinueBtn">Nice!</button></div>
+  `;
+  document.getElementById('lootContinueBtn').onclick = closeModal;
+  openModal();
+}
+
+/* ---------------------------- COMBAT ---------------------------- */
+let COMBAT = null;
+
+function openCombatModal(tile){
+  const p = activePlayer();
+  const enemyDef = findEnemyDef(tile.event.enemyId);
+  COMBAT = { tile, p, enemyHp: enemyDef.hp, enemyDef, log:[], stage:'intro', usedStars:false };
+  renderCombatModal();
+  openModal();
+}
+
+function playerAttackRoll(p, mechanicOverride){
+  const mechanic = mechanicOverride || CLASS_DEFS[p.cls].mechanic;
+  const atkMod = getStat(p,'atkMod');           // includes item/module buffs
+  const dmgDie = CLASS_DEFS[p.cls].dmg;
+  const def = COMBAT.enemyDef.def;
+
+  // "roll: advantage" effects (from any item or module) grant an extra d20
+  // and keep the better result, then are consumed.
+  const adv = hasRollMode(p,'advantage');
+  const d20 = ()=>{
+    if(!adv) return rollDie(20);
+    return Math.max(rollDie(20), rollDie(20));
+  };
+  if(adv) consumeRollMode(p,'advantage');
+  const advNote = adv ? ' [advantage]' : '';
+
+  if(mechanic==='might'){
+    const r1=d20(), r2=d20();
+    const best = Math.max(r1,r2) + atkMod;
+    const hit = best >= def;
+    return { hit, text:`Rolls ${r1} &amp; ${r2}, keeps ${Math.max(r1,r2)} (+${atkMod}) = ${best} vs DEF ${def}${advNote}`, dmgDie, mult:1 };
+  }
+  if(mechanic==='twoshots'){
+    const r1 = d20()+atkMod;
+    if(r1>=def) return { hit:true, text:`Ranged shot: ${r1} vs DEF ${def} — clean hit.${advNote}`, dmgDie, mult:1 };
+    const r2 = d20()+ (atkMod+2);
+    const hit2 = r2>=def;
+    return { hit:hit2, text:`Ranged shot missed (${r1}). Closer shot: ${r2} vs DEF ${def}.${advNote}`, dmgDie:'1d4', mult:1 };
+  }
+  if(mechanic==='shadow'){
+    const stealth = d20()+2;
+    const stealthOk = stealth >= COMBAT.enemyDef.def;
+    const atk = d20() + (stealthOk ? atkMod+2 : atkMod);
+    const hit = atk >= def;
+    const mult = stealthOk ? 2 : 1;
+    return { hit, text:`Stealth check ${stealth} ${stealthOk?'(succeeds)':'(fails, noticed)'} — attack ${atk} vs DEF ${def}${stealthOk?' [x2 dmg]':''}${advNote}`, dmgDie, mult };
+  }
+  return { hit:false, text:'...', dmgDie, mult:1 };
+}
+
+function renderCombatModal(){
+  const { p, enemyDef, enemyHp } = COMBAT;
+  const b = document.getElementById('modalBody');
+  b.innerHTML = `
+    <h2>${enemyDef.icon} ${enemyDef.name}${enemyDef.boss?' <span style="color:var(--gold);font-size:.7em;">— BOSS</span>':''}</h2>
+    <div class="modal-sub">${enemyDef.flavor}</div>
+    <div class="combat-row">
+      <div class="combatant">
+        <div class="cname">${p.name}</div>
+        <div class="hpbar" style="margin-top:.3em;"><div class="hpbar-fill" style="width:${Math.max(0,p.hp/getStat(p,'maxHp')*100)}%"></div></div>
+        <div class="mono" style="font-size:.7rem;color:var(--ink-dim);">${p.hp}/${getStat(p,'maxHp')} HP</div>
+      </div>
+      <div style="font-size:1.4rem;">⚔️</div>
+      <div class="combatant">
+        <div class="cname">${enemyDef.name}</div>
+        <div class="hpbar" style="margin-top:.3em;"><div class="hpbar-fill" style="width:${Math.max(0,enemyHp/enemyDef.hp*100)}%; background:linear-gradient(90deg,#6b4a1f,var(--gold));"></div></div>
+        <div class="mono" style="font-size:.7rem;color:var(--ink-dim);">${Math.max(0,enemyHp)}/${enemyDef.hp} HP</div>
+      </div>
+    </div>
+    <div class="roll-result" id="combatRollResult">${COMBAT.lastText || 'Choose an action.'}</div>
+    <div class="modal-actions" id="combatActions"></div>
+  `;
+  const actions = document.getElementById('combatActions');
+  actions.innerHTML='';
+
+  if(enemyHp<=0){
+    actions.appendChild(makeBtn('Claim Trophy', 'primary', ()=>finishCombat(true)));
+    return;
+  }
+  if(p.hp<=0){
+    actions.appendChild(makeBtn('...', 'danger', ()=>finishCombat(false)));
+    return;
+  }
+
+  actions.appendChild(makeBtn('Attack', 'primary', ()=>doCombatRound()));
+
+  // Every held item that declares combat-usable effects gets a button here.
+  // Nothing is special-cased by id, so items added via JSON modules become
+  // usable in battle automatically.
+  p.items.forEach(it=>{
+    const def = findItemDef(it.id);
+    if(!def || !itemUsableIn(def,'combat')) return;
+    if(it.usesLeft!==Infinity && it.usesLeft<=0) return;
+    const free = (def.effects||[]).some(e=>e.free);
+    actions.appendChild(makeBtn(`${def.icon||'📦'} ${def.name}`, 'ghost', ()=>{
+      const notes = applyEffects(def.effects, p, { combat: COMBAT });
+      if(it.usesLeft!==Infinity) it.usesLeft--;
+      p.items = p.items.filter(x=>x.usesLeft===Infinity || x.usesLeft>0);
+      COMBAT.lastText = `${def.name}: ${notes || 'no effect'}.`;
+      log(`${p.name} uses ${def.name} — ${notes || 'no effect'}.`, 'loot');
+
+      // Non-"free" items give the enemy a chance to retaliate.
+      if(!free && COMBAT.enemyHp>0 && p.hp>0) enemyRetaliate();
+      if(COMBAT.enemyHp<=0) log(`${p.name} defeats the ${enemyDef.name}!`, 'combat');
+      if(p.hp<=0){ p.alive=false; log(`${p.name} has fallen in the depths.`, 'combat'); }
+      renderCombatModal();
+      renderPlayerPanel();
+    }));
+  });
+
+  actions.appendChild(makeBtn('Flee', 'danger', ()=>{
+    const dmg = rollExpr(enemyDef.dmg);
+    p.hp = Math.max(0, p.hp - dmg.total);
+    log(`${p.name} flees from the ${enemyDef.name}, taking ${dmg.total} damage on the way out.`, 'combat');
+    closeModal();
+    tile_finalizeNoLoot(COMBAT.tile);
+    renderAll();
+  }));
+}
+
+/* The enemy's swing, shared by attacking and by using a non-free item. */
+function enemyRetaliate(){
+  const { p, enemyDef } = COMBAT;
+  COMBAT.enemyStatus = COMBAT.enemyStatus || {};
+  if(COMBAT.enemyStatus.stun>0 || COMBAT.enemyStatus.freeze>0){
+    if(COMBAT.enemyStatus.stun>0) COMBAT.enemyStatus.stun--;
+    if(COMBAT.enemyStatus.freeze>0) COMBAT.enemyStatus.freeze--;
+    return ` The ${enemyDef.name} can't act.`;
+  }
+  const eroll = rollDie(20)+2;
+  if(eroll >= getStat(p,'def')){
+    const edmg = rollExpr(enemyDef.dmg);
+    p.hp = Math.max(0, p.hp - edmg.total);
+    let t = ` ${enemyDef.name} strikes back for ${edmg.total}.`;
+    if(enemyDef.special==='poison'){ p.statusEffects.poisoned = 2; t += ' Venom lingers.'; }
+    return t;
+  }
+  return ` ${enemyDef.name}'s counter misses.`;
+}
+
+function makeBtn(text, cls, fn){
+  const b = document.createElement('button');
+  b.className = 'btn small ' + cls;
+  b.innerHTML = text;
+  b.onclick = fn;
+  return b;
+}
+
+function doCombatRound(){
+  const { p, enemyDef } = COMBAT;
+  const result = playerAttackRoll(p);
+  let text = result.text;
+  COMBAT.enemyStatus = COMBAT.enemyStatus || {};
+
+  if(result.hit){
+    const dmg = rollExpr(result.dmgDie);
+    const mult = result.mult * getStat(p,'dmgMult');
+    const total = Math.round(dmg.total * mult);
+    COMBAT.enemyHp -= total;
+    text += mult>1
+      ? ` — HIT for ${dmg.detail} x${mult} = ${total} dmg.`
+      : ` — HIT for ${dmg.detail} dmg.`;
+
+    // Fire onHit effects from every held item that has them. Fully
+    // data-driven, so a module weapon's onHit behaves like a core one's.
+    p.items.forEach(it=>{
+      const def = findItemDef(it.id);
+      if(!def || !def.onHit || !def.onHit.length) return;
+      if(def.cls && def.cls!==p.cls) return;              // class-locked gear
+      if(it.usesLeft!==Infinity && it.usesLeft<=0) return;
+      const notes = applyEffects(def.onHit, p, { combat: COMBAT });
+      if(notes) text += ` ${def.name}: ${notes}.`;
+    });
+  } else {
+    text += ` — MISS.`;
+  }
+
+  if(COMBAT.enemyStatus.bleed>0 && COMBAT.enemyHp>0){
+    const bleed = rollExpr('1d4');
+    COMBAT.enemyHp -= bleed.total;
+    COMBAT.enemyStatus.bleed--;
+    text += ` Bleeding deals ${bleed.total}.`;
+  }
+
+  if(COMBAT.enemyHp>0) text += enemyRetaliate();
+
+  if(p.statusEffects.poisoned>0){
+    const pd = rollExpr('1d2');
+    p.hp = Math.max(0, p.hp-pd.total);
+    p.statusEffects.poisoned--;
+    text += ` Poison saps ${pd.total}.`;
+  }
+
+  COMBAT.lastText = text;
+  renderCombatModal();
+  renderPlayerPanel();
+  syncNow();
+
+  if(COMBAT.enemyHp<=0){
+    log(`${p.name} defeats the ${enemyDef.name}!`, 'combat');
+  } else if(p.hp<=0){
+    p.alive = false;
+    log(`${p.name} has fallen in the depths.`, 'combat');
+  }
+}
+
+function finishCombat(won){
+  const { p, tile, enemyDef } = COMBAT;
+  if(won){
+    p.trophies.push(enemyDef.id);
+    tile.resolved = true;
+    closeModal();
+    if(enemyDef.boss){
+      endGame(true, `${p.name} (${CLASS_DEFS[p.cls].name}) has slain ${enemyDef.name}! The expedition triumphs.`);
+      return;
+    }
+    if(tile.event.thenLoot){ grantLoot(tile); return; }
+    renderAll();
+  } else {
+    closeModal();
+    checkGameOverOrContinue();
+  }
+  COMBAT = null;
+}
+
+function tile_finalizeNoLoot(tile){ tile.resolved = true; COMBAT=null; }
+
+function checkGameOverOrContinue(){
+  const alive = STATE.players.filter(p=>p.alive);
+  if(alive.length===0){ endGame(false, 'The whole party has fallen. The depths keep their secrets.'); }
+  else renderAll();
+}
+
+/* ---------------------------- TRAP MODAL ---------------------------- */
+function openTrapModal(tile){
+  const p = activePlayer();
+  const trap = findTrapDef(tile.event.trapId);
+  const b = document.getElementById('modalBody');
+  b.innerHTML = `
+    <h2>${trap.icon} ${trap.name}</h2>
+    <div class="modal-sub">${trap.flavor}</div>
+    <div class="roll-result" id="trapResult">Roll to react.</div>
+    <div class="modal-actions" id="trapActions"></div>
+  `;
+  const actions = document.getElementById('trapActions');
+  actions.appendChild(makeBtn('Roll to Avoid', 'primary', ()=>{
+    const roll = rollDie(20) + Math.floor((getStat(p,'def')-10));
+    const success = roll >= trap.dc;
+    let txt = `Rolled ${roll} vs DC ${trap.dc} — `;
+    if(success){ txt += 'avoided cleanly.'; }
+    else {
+      const dmg = rollExpr(trap.dmg);
+      p.hp = Math.max(0, p.hp - dmg.total);
+      txt += `caught! ${dmg.detail} damage.`;
+      if(p.hp<=0) p.alive=false;
+    }
+    document.getElementById('trapResult').innerHTML = txt;
+    actions.innerHTML='';
+    actions.appendChild(makeBtn('Continue', 'primary', ()=>{
+      tile.resolved = true;
+      closeModal();
+      log(txt, 'trap');
+      if(!p.alive){ checkGameOverOrContinue(); return; }
+      if(tile.event.thenLoot){ grantLoot(tile); return; }
+      renderAll();
+    }));
+    renderPlayerPanel();
+  }));
+  openModal();
+}
+
+/* ---------------------------- ITEM USE (out of combat) ---------------------------- */
+function openItemModal(){
+  const p = activePlayer();
+  const b = document.getElementById('modalBody');
+  if(p.items.length===0){
+    b.innerHTML = `<h2>Inventory</h2><div class="modal-sub">Nothing to use yet.</div><div class="modal-actions"><button class="btn primary" id="closeItemModal">Close</button></div>`;
+    document.getElementById('closeItemModal').onclick = closeModal;
+    openModal(); return;
+  }
+  b.innerHTML = `<h2>Inventory</h2><div class="modal-sub">Tap a usable item. Weapons work automatically in battle.</div><div class="choice-list" id="itemChoiceList"></div><div class="modal-actions"><button class="btn ghost" id="closeItemModal">Close</button></div>`;
+  const list = document.getElementById('itemChoiceList');
+  p.items.forEach((it,idx)=>{
+    const def = findItemDef(it.id);
+    if(!def) return;
+    const usable = itemUsableIn(def,'explore');
+    const combatOnly = !usable && itemUsableIn(def,'combat');
+    const passive = !usable && !combatOnly;
+    const c = el('div','card item-weapon');
+    c.style.opacity = usable ? 1 : .6;
+    const tag = usable ? '' : combatOnly ? '<div class="uses-badge">battle only</div>'
+                                         : '<div class="uses-badge">passive / equipped</div>';
+    c.innerHTML = `<div class="cardtype">${def.type}${def.cls?' · '+CLASS_DEFS[def.cls].name:''}</div>
+      <div class="cardicon">${def.icon||'📦'}</div><div class="cardname">${def.name}</div>
+      <div class="carddesc">${def.desc||''}</div>
+      <div class="card-footer">${tag}<span class="uses-badge">${it.usesLeft===Infinity?'equipped':it.usesLeft+' left'}</span></div>`;
+    if(usable) c.onclick = ()=>useItemOutOfCombat(it, idx);
+    list.appendChild(c);
+  });
+  document.getElementById('closeItemModal').onclick = closeModal;
+  openModal();
+}
+function useItemOutOfCombat(it, idx){
+  const p = activePlayer();
+  const def = findItemDef(it.id);
+  if(!def || !itemUsableIn(def,'explore')) return;
+
+  const ctx = {};
+  const notes = applyEffects(def.effects, p, ctx);
+  if(it.usesLeft!==Infinity) it.usesLeft--;
+  p.items = p.items.filter(x=>x.usesLeft===Infinity || x.usesLeft>0);
+  log(`${p.name} uses ${def.name} — ${notes || 'no effect'}.`, 'loot');
+
+  // A deckPeek effect hands control to the tile-choice prompt.
+  if(ctx.deckPeek){
+    const options = [];
+    for(let i=0;i<ctx.deckPeek;i++) options.push(drawTileType());
+    showClairvoyanceChoice(options, def);
+    return;
+  }
+  closeModal();
+  renderAll();
+}
+function showClairvoyanceChoice(options, sourceDef){
+  const b = document.getElementById('modalBody');
+  const icon = (sourceDef && sourceDef.icon) || '🔮';
+  const name = (sourceDef && sourceDef.name) || 'Clairvoyance';
+  b.innerHTML = `<h2>${icon} ${name}</h2><div class="modal-sub">Choose which tile fate deals you next.</div><div class="choice-list" id="clairList"></div>`;
+  const list = document.getElementById('clairList');
+  // `options` were drawn off the deck already. The chosen one is held for the
+  // next exploration; the rest go back into the deck.
+  options.forEach(type=>{
+    const c = el('div','card');
+    c.innerHTML = `<div class="cardtype">Tile</div><div class="cardicon">🚪</div><div class="cardname">${TILE_DEFS[type].label}</div>`;
+    c.onclick = ()=>{
+      STATE.pendingClairvoyance = type;
+      options.filter(t=>t!==type).forEach(t=>STATE.deck.push(t));
+      STATE.deck = shuffle(STATE.deck);
+      log(`The lens reveals a ${TILE_DEFS[type].label.toLowerCase()} waiting ahead.`, 'system');
+      closeModal();
+      renderAll();
+    };
+    list.appendChild(c);
+  });
+}
+
+/* ---------------------------- MODAL PLUMBING ---------------------------- */
+// Marks the modal inert when the local user isn't the acting seat.
+function updateModalInteractivity(){
+  const body = document.getElementById('modalBody');
+  if(!body) return;
+  const spectating = NET.enabled && STATE && !iControl();
+  body.classList.toggle('spectating', !!spectating);
+}
+function openModal(){
+  document.getElementById('modalRoot').classList.add('open');
+  updateModalInteractivity();
+  syncNow();
+}
+function closeModal(){ document.getElementById('modalRoot').classList.remove('open'); syncNow(); }
+
+/* ---------------------------- END GAME ---------------------------- */
+function endGame(won, message){
+  STATE.over = true;
+  document.getElementById('endTitle').textContent = won ? 'Victory in the Deep' : 'The Depths Claim You';
+  document.getElementById('endTitle').style.color = won ? 'var(--gold)' : 'var(--blood-bright)';
+  document.getElementById('endBody').textContent = message;
+  goto('end');
+}
+
+/* ================================================================
+   RENDER
+   ================================================================ */
+function renderAll(){
+  if(!STATE) return;
+  renderNetBanner();
+  renderTopbar();
+  renderPlayerPanel();
+  renderMap();
+  renderLog();
+  renderTurnbar();
+  updateModalInteractivity();
+  // renderAll runs after essentially every rule change, which makes it the
+  // natural place for the host to publish state. No-op for clients.
+  syncNow();
+}
+
+function renderTopbar(){
+  document.getElementById('tbPlayer').textContent = `${activePlayer().name} (${CLASS_DEFS[activePlayer().cls].name})`;
+  document.getElementById('tbRound').textContent = STATE.round;
+  document.getElementById('tbLevel').textContent = STATE.level;
+  document.getElementById('tbMapType').textContent = STATE.mapType;
+}
+
+function renderTurnbar(){
+  const p = activePlayer();
+  const hintEl = document.getElementById('turnHint');
+  const actions = document.getElementById('turnActions');
+
+  // Spectating another seat's turn: show whose it is, offer no controls.
+  if(NET.enabled && !iControl()){
+    hintEl.textContent = `${p.name} is taking their turn…`;
+    actions.innerHTML = '';
+    return;
+  }
+
+  if(PENDING_PLACEMENT){
+    const pp = PENDING_PLACEMENT;
+    const def = TILE_DEFS[pp.type];
+    const canEnter = entryIsOpen(pp.type, pp.rot, pp.needsOpen);
+    // Sides other than the entry are allowed to mismatch — they just wall off.
+    const sealed = getPlacementConflicts(pp.type, pp.nx, pp.ny, pp.rot)
+      .filter(d => d !== pp.needsOpen);
+    let status;
+    if(!canEnter){
+      status = `<span class="place-status invalid">⚠️ no opening faces you — rotate to get in</span>`;
+    } else if(sealed.length){
+      status = `<span class="place-status">fits — ${sealed.map(d=>DIR_LABEL[d]).join(' & ')} side${sealed.length>1?'s':''} will be walled off</span>`;
+    } else {
+      status = `<span class="place-status valid">✅ every edge lines up</span>`;
+    }
+    hintEl.innerHTML = `<b>${def.label}</b> drawn ${DIR_LABEL[pp.dir]} — ` + status;
+    actions.innerHTML = `
+      <button class="btn small ghost" id="rotateBtn">⟳ Rotate</button>
+      <button class="btn small primary" id="confirmPlaceBtn" ${canEnter?'':'disabled'}>Place Tile</button>
+    `;
+    document.getElementById('rotateBtn').onclick = actRotate;
+    document.getElementById('confirmPlaceBtn').onclick = actPlace;
+    return;
+  }
+
+  const exits = unexploredExits(p.x,p.y);
+  const moves = exploredConnectedNeighbors(p.x,p.y);
+  const tile = STATE.grid.get(key(p.x,p.y));
+  const ap = p.ap||0;
+  let hint = `${p.name} — ${ap}/${getStat(p,'apMax')} action${ap===1?'':'s'} left. `;
+  if(ap===0) hint += 'End turn to continue. ';
+  else {
+    if(tile && tile.stairs) hint += 'At a stairway. ';
+    hint += exits.length ? `${exits.length} unexplored, ` : 'no unexplored exits, ';
+    hint += `${moves.length} connection(s).`;
+  }
+  hintEl.textContent = hint;
+
+  // Backstop against soft-locks: if this character has nowhere to explore, no
+  // connection to walk, and no stairway, offer a retreat to the entrance so
+  // the run can always continue.
+  const stranded = exits.length===0 && moves.length===0 && !(tile && tile.stairs);
+  actions.innerHTML = `
+    ${tile && tile.stairs ? '<button class="btn small primary" id="stairsBtn">🪜 Take Stairs</button>' : ''}
+    ${stranded ? '<button class="btn small danger" id="retreatBtn">↩ Retreat to Entrance</button>' : ''}
+    <button class="btn small ghost" id="useItemBtn">Use Item</button>
+    <button class="btn small primary" id="endTurnBtn">End Turn</button>
+  `;
+  if(tile && tile.stairs) document.getElementById('stairsBtn').onclick = actStairs;
+  if(stranded) document.getElementById('retreatBtn').onclick = actRetreat;
+  document.getElementById('useItemBtn').onclick = actItems;
+  document.getElementById('endTurnBtn').onclick = actEndTurn;
+}
+
+function renderPlayerPanel(){
+  const panel = document.getElementById('playerPanel');
+  panel.innerHTML = '';
+  if(isSoloParty() && STATE.players.length>1){
+    const note = el('div','empty-note','Solo party — tap a character to take control.');
+    note.style.marginBottom = '.7rem';
+    panel.appendChild(note);
+  }
+  STATE.players.forEach((p, idx)=>{
+    const wrap = el('div');
+    wrap.style.marginBottom = '1.4rem';
+    wrap.style.opacity = p.alive ? 1 : .45;
+    const isActive = idx===STATE.activeIndex;
+    const maxHp = getStat(p,'maxHp');
+    const ap = p.ap||0, apMax = getStat(p,'apMax');
+    // Buff chips: any timed modifier from any item or module shows up here.
+    const buffChips = (p.buffs||[]).map(b=>{
+      const label = b.stat.startsWith('roll:') ? b.stat.replace('roll:','🎲 ')
+                  : `${b.amount>0?'+':''}${b.amount} ${b.stat}`;
+      const left = b.roundsLeft===Infinity ? '' : ` (${b.roundsLeft})`;
+      return `<span class="chip">${label}${left}</span>`;
+    }).join('');
+    wrap.innerHTML = `
+      <div class="sheet-name">${isActive?'▶ ':''}${CLASS_DEFS[p.cls].icon} ${p.name}${!p.alive?' (fallen)':''}</div>
+      <div class="sheet-class">${CLASS_DEFS[p.cls].name} — ${CLASS_DEFS[p.cls].tagline}</div>
+      <div class="hpbar-wrap">
+        <div class="hpbar-label"><span>HP</span><span>${Math.max(0,p.hp)}/${maxHp}</span></div>
+        <div class="hpbar"><div class="hpbar-fill" style="width:${Math.max(0,p.hp/maxHp*100)}%"></div></div>
+      </div>
+      <div class="status-chips">
+        <span class="chip">⚡ ${ap}/${apMax} actions</span>
+        ${p.statusEffects.poisoned>0?'<span class="chip">☠ poisoned</span>':''}
+        ${buffChips}
+      </div>
+      <div class="panel-subhead">Inventory</div>
+      <div class="mini-items">${p.items.length? p.items.map(it=>{
+        const def = findItemDef(it.id);
+        if(!def) return '';
+        return `<div class="mini-item"><span class="mi-icon">${def.icon||'📦'}</span><div class="mi-body"><div class="mi-name">${def.name}</div><div class="mi-uses">${it.usesLeft===Infinity?'equipped':it.usesLeft+' use(s) left'}</div></div></div>`;
+      }).join('') : '<div class="empty-note">No items yet.</div>'}</div>
+      <div class="panel-subhead">Trophies</div>
+      <div class="trophy-row">${p.trophies.length? p.trophies.map(id=>{
+        const e = findEnemyDef(id);
+        return `<span class="trophy" title="${e?e.name:id}">${TROPHY_ICONS[id]||'🏆'}</span>`;
+      }).join('') : '<span class="empty-note">None yet.</span>'}</div>
+    `;
+    if(isSoloParty() && p.alive && !isActive){
+      wrap.style.cursor = 'pointer';
+      wrap.title = 'Take control of ' + p.name;
+      wrap.onclick = ()=>actSwitch(idx);
+    }
+    panel.appendChild(wrap);
+    if(idx < STATE.players.length-1){ const hr = el('hr'); hr.style.border='none'; hr.style.borderTop='1px solid var(--line)'; panel.appendChild(hr); }
+  });
+}
+
+const LOG_ICON = { system:'🕯️', combat:'⚔️', loot:'💰', trap:'⚠️' };
+function renderLog(){
+  const list = document.getElementById('logList');
+  if(!list) return;
+  list.innerHTML = STATE.logEntries.map(e=>`<div class="log-entry evt-${e.kind}">${LOG_ICON[e.kind]||'🕯️'} ${e.msg}</div>`).join('');
+  const preview = document.getElementById('logPreviewLine');
+  if(preview){
+    const latest = STATE.logEntries[0];
+    preview.textContent = latest ? `${LOG_ICON[latest.kind]||''} ${latest.msg.replace(/<[^>]+>/g,'')}` : '';
+  }
+}
+
+const CELL_BASE = 96;
+function renderMap(){
+  const inner = document.getElementById('mapInner');
+  const viewport = document.getElementById('mapViewport');
+  const cs = CELL_BASE * STATE.zoom;
+  inner.style.setProperty('--cs', cs+'px');
+  inner.innerHTML = '';
+
+  const p = activePlayer();
+  const vw = viewport.clientWidth || 600;
+  const vh = viewport.clientHeight || 400;
+
+  // gather cells to render: explored + fog ring
+  const coordsToShow = new Map();
+  for(const [k,t] of STATE.grid){ coordsToShow.set(k, t); }
+  // fog ring around every explored non-wall tile
+  for(const [k,t] of STATE.grid){
+    if(t.isWall) continue;
+    for(const d of DIRS){
+      const [nx,ny] = neighborCoord(t.x,t.y,d);
+      const nk = key(nx,ny);
+      if(!coordsToShow.has(nk)) coordsToShow.set(nk, { fog:true, x:nx, y:ny });
+    }
+  }
+
+  for(const [k,t] of coordsToShow){
+    const cell = el('div','cell');
+    cell.style.left = (t.x*cs)+'px';
+    cell.style.top = (t.y*cs)+'px';
+    cell.style.width = cs+'px';
+    cell.style.height = cs+'px';
+    if(t.fog){
+      cell.classList.add('fog');
+      inner.appendChild(cell);
+      continue;
+    }
+    if(t.isWall){
+      cell.style.background = '#0a0807';
+      cell.style.border = '1px solid #000';
+      inner.appendChild(cell);
+      continue;
+    }
+    const img = document.createElement('img');
+    img.src = TILE_IMAGES[TILE_DEFS[t.type].img];
+    img.style.transform = `rotate(${t.rot*90}deg)`;
+    cell.appendChild(img);
+
+    if(t.stairs){
+      const s = el('div','stairs-badge','🪜');
+      cell.appendChild(s);
+    }
+
+    const avatarLayer = el('div','avatar-layer');
+    STATE.players.forEach(pl=>{
+      if(pl.x===t.x && pl.y===t.y && pl.alive){
+        const tok = el('div','avatar-token', CLASS_DEFS[pl.cls].icon);
+        tok.style.background = pl===p ? 'radial-gradient(circle,#3a2c1f,#221913)' : '#221913';
+        tok.style.boxShadow = pl===p ? '0 0 8px var(--ember)' : '0 2px 6px rgba(0,0,0,.6)';
+        avatarLayer.appendChild(tok);
+      }
+    });
+    cell.appendChild(avatarLayer);
+    inner.appendChild(cell);
+  }
+
+  // In a network game only the seat whose turn it is gets interactive
+  // arrows; everyone else is watching.
+  const interactive = iControl() && !STATE.over;
+  // frontier arrows from active player's tile — hidden while a tile is
+  // pending placement, since that has to be resolved first
+  if(!PENDING_PLACEMENT && interactive){
+    const exits = unexploredExits(p.x,p.y);
+    exits.forEach(d=>{
+      const arrow = el('div','frontier-arrow');
+      positionArrow(arrow, p.x, p.y, d, cs);
+      arrow.innerHTML = '<div class="dot"></div>';
+      arrow.title = 'Explore ' + DIR_LABEL[d];
+      arrow.onclick = ()=>actExplore(d);
+      inner.appendChild(arrow);
+    });
+    const moves = exploredConnectedNeighbors(p.x,p.y);
+    moves.forEach(d=>{
+      const arrow = el('div','frontier-arrow move');
+      positionArrow(arrow, p.x, p.y, d, cs);
+      arrow.innerHTML = '<div class="dot"></div>';
+      arrow.title = 'Move ' + DIR_LABEL[d];
+      arrow.onclick = ()=>actMove(d);
+      inner.appendChild(arrow);
+    });
+  } else if(PENDING_PLACEMENT){
+    // Ghost tile: the just-drawn candidate, rendered right where it would
+    // land, at its current candidate rotation. Tap it to rotate in place —
+    // this is the "see how it would look, right on the map" preview.
+    const pp = PENDING_PLACEMENT;
+    const conflicts = getPlacementConflicts(pp.type, pp.nx, pp.ny, pp.rot);
+    const valid = conflicts.length===0;
+    const ghost = el('div','cell ghost-cell'+(valid?'':' invalid'));
+    ghost.style.left = (pp.nx*cs)+'px';
+    ghost.style.top = (pp.ny*cs)+'px';
+    ghost.style.width = cs+'px';
+    ghost.style.height = cs+'px';
+    const img = document.createElement('img');
+    img.src = TILE_IMAGES[TILE_DEFS[pp.type].img];
+    img.style.transform = `rotate(${pp.rot*90}deg)`;
+    ghost.appendChild(img);
+    ghost.appendChild(el('div','ghost-ring'));
+    ghost.title = 'Tap to rotate';
+    ghost.onclick = actRotate;
+    inner.appendChild(ghost);
+  }
+
+  // center viewport on active player (or on the pending ghost tile, so the
+  // player can actually see what they're rotating)
+  const focusX = PENDING_PLACEMENT ? PENDING_PLACEMENT.nx : p.x;
+  const focusY = PENDING_PLACEMENT ? PENDING_PLACEMENT.ny : p.y;
+  const offsetX = vw/2 - (focusX*cs + cs/2);
+  const offsetY = vh/2 - (focusY*cs + cs/2);
+  inner.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+}
+function positionArrow(arrow, x, y, dir, cs){
+  const pad = cs*0.06;
+  if(dir==='N'){ arrow.style.left=(x*cs+cs*0.5-cs*0.075)+'px'; arrow.style.top=(y*cs+pad)+'px'; }
+  if(dir==='S'){ arrow.style.left=(x*cs+cs*0.5-cs*0.075)+'px'; arrow.style.top=(y*cs+cs-pad-cs*0.15)+'px'; }
+  if(dir==='W'){ arrow.style.left=(x*cs+pad)+'px'; arrow.style.top=(y*cs+cs*0.5-cs*0.075)+'px'; }
+  if(dir==='E'){ arrow.style.left=(x*cs+cs-pad-cs*0.15)+'px'; arrow.style.top=(y*cs+cs*0.5-cs*0.075)+'px'; }
+  arrow.style.width = (cs*0.15)+'px';
+  arrow.style.height = (cs*0.15)+'px';
+}
+
+/* ================================================================
+   SETUP SCREEN
+   ================================================================ */
+let SETUP = { playerCount:1, control:'solo', mode:'coop', objective:'endless', players:[] };
+
+function initSetupDefaults(){
+  SETUP.players = Array.from({length:SETUP.playerCount}, (_,i)=>({
+    name: `Adventurer ${i+1}`, cls: ['warrior','archer','thief'][i%3]
+  }));
+}
+function renderSetupScreen(){
+  const pcRow = document.getElementById('playerCountRow');
+  pcRow.innerHTML='';
+  [1,2,3,4].forEach(n=>{
+    const p = el('div','pill'+(SETUP.playerCount===n?' active':''), n+' Player'+(n>1?'s':''));
+    p.onclick=()=>{ SETUP.playerCount=n; initSetupDefaults(); renderSetupScreen(); };
+    pcRow.appendChild(p);
+  });
+  const ctrlRow = document.getElementById('controlRow');
+  ctrlRow.innerHTML='';
+  [['solo','One player, whole party'],['hotseat','Pass & play']].forEach(([v,l])=>{
+    const p = el('div','pill'+(SETUP.control===v?' active':''), l);
+    p.onclick=()=>{ SETUP.control=v; renderSetupScreen(); };
+    ctrlRow.appendChild(p);
+  });
+  document.getElementById('controlNote').textContent = SETUP.control==='solo'
+    ? 'You control every character. Tap any party member to take over; each has their own actions each round.'
+    : 'Each player takes their own turn in sequence on this device.';
+
+  const modeRow = document.getElementById('modeRow');
+  modeRow.innerHTML='';
+  [['coop','Co-op'],['competitive','Competitive']].forEach(([v,l])=>{
+    const p = el('div','pill'+(SETUP.mode===v?' active':''), l);
+    p.onclick=()=>{ SETUP.mode=v; renderSetupScreen(); };
+    modeRow.appendChild(p);
+  });
+  const objRow = document.getElementById('objectiveRow');
+  objRow.innerHTML='';
+  [['endless','Endless Descent'],['boss','Boss Hunt'],['treasure','Lost Treasure']].forEach(([v,l])=>{
+    const p = el('div','pill'+(SETUP.objective===v?' active':''), l);
+    p.onclick=()=>{ SETUP.objective=v; renderSetupScreen(); };
+    objRow.appendChild(p);
+  });
+
+  const cfgWrap = document.getElementById('playerConfigs');
+  cfgWrap.innerHTML='';
+  SETUP.players.forEach((pl,idx)=>{
+    const box = el('div','player-config');
+    const head = el('div','player-config-head');
+    const input = document.createElement('input');
+    input.type='text'; input.value=pl.name;
+    input.oninput = (e)=>{ pl.name = e.target.value || `Adventurer ${idx+1}`; };
+    head.innerHTML = `<span class="mono" style="color:var(--ink-faint);">P${idx+1}</span>`;
+    head.appendChild(input);
+    box.appendChild(head);
+    const grid = el('div','class-grid');
+    Object.entries(CLASS_DEFS).forEach(([cid,cdef])=>{
+      const card = el('div','class-card'+(pl.cls===cid?' selected':''));
+      card.innerHTML = `<div class="cicon">${cdef.icon}</div><div class="cname">${cdef.name}</div>
+        <div class="cstats"><span>HP ${cdef.maxHp}</span><span>DEF ${cdef.def}</span></div>
+        <div class="cdesc">${cdef.desc}</div>`;
+      card.onclick = ()=>{ pl.cls = cid; renderSetupScreen(); };
+      grid.appendChild(card);
+    });
+    box.appendChild(grid);
+    cfgWrap.appendChild(box);
+  });
+}
+
+/* ================================================================
+   CODEX SCREEN
+   ================================================================ */
+function renderCodex(tab){
+  tab = tab || 'items';
+  document.querySelectorAll('[data-codex]').forEach(b=>b.classList.toggle('active', b.dataset.codex===tab));
+  const grid = document.getElementById('codexGrid');
+  grid.innerHTML='';
+  grid.style.display = (tab==='modules') ? 'block' : 'grid';
+  if(tab==='items'){
+    CONTENT.items.forEach(def=>{
+      const c = el('div','card item-weapon');
+      const where = itemUsableIn(def,'combat') && itemUsableIn(def,'explore') ? 'anytime'
+                  : itemUsableIn(def,'combat') ? 'in battle'
+                  : itemUsableIn(def,'explore') ? 'exploring' : 'passive';
+      c.innerHTML = `<div class="cardtype">${def.type}${def.cls?' · '+CLASS_DEFS[def.cls].name:''}</div>
+        <div class="cardicon">${def.icon||'📦'}</div><div class="cardname">${def.name}</div>
+        <div class="carddesc">${def.desc||''}</div>
+        ${describeEffects(def)}
+        <div class="card-footer">
+          <span class="uses-badge">${where}</span>
+          <span class="uses-badge">${def.uses===Infinity?'equip':def.uses+' use'+(def.uses>1?'s':'')}</span>
+        </div>
+        ${def._source && def._source!=='core' ? `<div class="uses-badge" style="margin-top:.4rem;">📦 ${def._source}</div>` : ''}`;
+      grid.appendChild(c);
+    });
+  } else if(tab==='enemies'){
+    CONTENT.enemies.forEach(def=>{
+      const c = el('div','card enemy'+(def.boss?' boss':''));
+      c.innerHTML = `<div class="cardtype">${def.boss?'boss':'enemy'}</div>
+        <div class="cardicon">${def.icon}</div><div class="cardname">${def.name}</div>
+        <div class="cardstats"><span>HP ${def.hp}</span><span>DEF ${def.def}</span><span>DMG ${def.dmg}</span></div>
+        <div class="carddesc">${def.flavor}${def.special?' <br><i>Special: '+def.special+'</i>':''}</div>`;
+      grid.appendChild(c);
+    });
+  } else if(tab==='traps'){
+    CONTENT.traps.forEach(def=>{
+      const c = el('div','card trap');
+      c.innerHTML = `<div class="cardtype">trap</div>
+        <div class="cardicon">${def.icon}</div><div class="cardname">${def.name}</div>
+        <div class="cardstats"><span>DMG ${def.dmg}</span><span>DC ${def.dc}</span></div>
+        <div class="carddesc">${def.flavor}</div>`;
+      grid.appendChild(c);
+    });
+  } else if(tab==='classes'){
+    Object.entries(CLASS_DEFS).forEach(([cid,def])=>{
+      const c = el('div','card');
+      c.innerHTML = `<div class="cardtype">class</div>
+        <div class="cardicon">${def.icon}</div><div class="cardname">${def.name}</div>
+        <div class="cardstats"><span>HP ${def.maxHp}</span><span>DEF ${def.def}</span><span>DMG ${def.dmg}</span></div>
+        <div class="carddesc"><b>${def.tagline}</b><br>${def.desc}</div>`;
+      grid.appendChild(c);
+    });
+  } else if(tab==='tiles'){
+    Object.entries(TILE_DEFS).forEach(([tid,def])=>{
+      const c = el('div','card');
+      const openCount = def.edges.filter(Boolean).length;
+      c.innerHTML = `<div class="cardtype">tile</div>
+        <img src="${TILE_IMAGES[def.img]}" style="width:100%;border-radius:4px;margin:.3em 0;">
+        <div class="cardname">${def.label}</div>
+        <div class="carddesc">${openCount} opening${openCount!==1?'s':''} — N:${def.edges[0]?'open':'wall'} E:${def.edges[1]?'open':'wall'} S:${def.edges[2]?'open':'wall'} W:${def.edges[3]?'open':'wall'}</div>`;
+      grid.appendChild(c);
+    });
+  } else if(tab==='modules'){
+    renderModulesTab(grid);
+  }
+}
+
+/* Renders an item's effects as human-readable lines, so the Codex doubles as
+   a reference for what the effect schema can express. */
+function describeEffects(def){
+  const lines = [];
+  const fmt = (e)=>{
+    const chance = typeof e.chance==='number' ? ` (${Math.round(e.chance*100)}% chance)` : '';
+    switch(e.kind){
+      case 'heal': return `Heals ${e.amount}`;
+      case 'damage': return `${e.target==='enemy'?'Deals':'Self-damage'} ${e.amount}${e.free?' — free action':''}`;
+      case 'buff': return `${e.amount>0?'+':''}${e.amount} ${e.stat}${e.duration?` for ${e.duration} round(s)`:' permanently'}`;
+      case 'ap': return `${e.amount>0?'+':''}${e.amount} action(s)`;
+      case 'roll': return `Next roll gains ${e.mode}${e.duration?` (${e.duration} round(s))`:''}`;
+      case 'status': return `Inflicts ${e.status} on ${e.target==='enemy'?'the enemy':'you'} for ${e.duration||1}`;
+      case 'cure': return `Cures ${e.status}`;
+      case 'deckPeek': return `Peek at ${e.count||3} upcoming tiles and choose one`;
+      case 'teleport': return `Teleports (${e.mode||'random'})`;
+      default: return e.kind;
+    }
+  };
+  (def.effects||[]).forEach(e=>lines.push('▸ '+fmt(e)));
+  (def.onHit||[]).forEach(e=>lines.push('⚔ on hit: '+fmt(e)));
+  if(!lines.length) return '';
+  return `<div class="cardstats" style="flex-direction:column;gap:.2em;align-items:flex-start;">${lines.map(l=>`<span>${l}</span>`).join('')}</div>`;
+}
+
+function renderModulesTab(grid){
+  grid.style.display = 'block';   // this tab is a column, not a card grid
+  const totals = `${CONTENT.items.length} items · ${CONTENT.enemies.length} enemies · ${CONTENT.traps.length} traps`;
+  grid.innerHTML = `
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="cardtype">content loaded</div>
+      <div class="cardname">${LOADED_MODULES.length} add-on module(s)</div>
+      <div class="carddesc">${totals}</div>
+    </div>
+    ${LOADED_MODULES.length ? LOADED_MODULES.map(m=>`
+      <div class="card" style="margin-bottom:.6rem;">
+        <div class="cardtype">module · ${m.source}</div>
+        <div class="cardname">📦 ${m.name} <span style="font-weight:400;color:var(--ink-dim);">v${m.version}</span></div>
+        <div class="carddesc">by ${m.author} — added ${m.counts.items} item(s), ${m.counts.enemies} enemy(ies), ${m.counts.traps} trap(s)</div>
+      </div>`).join('') : '<div class="empty-note" style="margin-bottom:1rem;">No add-on modules loaded — core content only.</div>'}
+    ${MODULE_ERRORS.length ? `<div class="card enemy" style="margin-bottom:1rem;">
+        <div class="cardtype">problems</div>
+        <div class="cardname">⚠️ ${MODULE_ERRORS.length} module error(s)</div>
+        <div class="carddesc">${MODULE_ERRORS.map(e=>`<b>${e.source}</b>: ${e.message}`).join('<br>')}</div>
+      </div>` : ''}
+
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="cardtype">add content</div>
+      <div class="cardname">Load a module</div>
+      <div class="carddesc" style="margin-bottom:.6rem;">
+        Drop <b>.json</b> files into a <b>mods/</b> folder next to this page and list them in
+        <b>mods/manifest.json</b> — they load automatically when hosted. You can also import one right now:
+      </div>
+      <input type="file" id="modFileInput" accept=".json,application/json" multiple
+             style="width:100%;margin-bottom:.6rem;color:var(--ink-dim);font-size:.8rem;">
+      <textarea id="modPaste" placeholder="…or paste module JSON here"
+        style="width:100%;min-height:90px;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+               border-radius:3px;padding:.5rem;font-family:'IBM Plex Mono',monospace;font-size:.72rem;"></textarea>
+      <div class="modal-actions" style="margin-top:.6rem;">
+        <button class="btn small primary" id="modPasteBtn">Load pasted JSON</button>
+        <button class="btn small ghost" id="modTemplateBtn">Copy starter template</button>
+      </div>
+      <div id="modFeedback" class="carddesc" style="margin-top:.6rem;"></div>
+    </div>
+  `;
+
+  const feedback = (msg, ok)=>{
+    const f = document.getElementById('modFeedback');
+    f.innerHTML = `<span style="color:${ok?'var(--verdigris)':'var(--blood-bright)'}">${msg}</span>`;
+  };
+  const tryInstall = (text, label)=>{
+    let pack;
+    try{ pack = JSON.parse(text); }
+    catch(err){ feedback(`❌ ${label}: invalid JSON — ${err.message}`, false); return; }
+    const res = installModule(pack, label);
+    if(res.ok){
+      feedback(`✅ Loaded "${pack.name||label}" — ${res.counts.items} item(s), ${res.counts.enemies} enemy(ies), ${res.counts.traps} trap(s). Available immediately.`, true);
+      renderCodex('modules');
+    } else {
+      feedback(`❌ ${label}: ${res.errors.join('; ')}`, false);
+    }
+  };
+
+  document.getElementById('modFileInput').onchange = (ev)=>{
+    const files = [...(ev.target.files||[])];
+    files.forEach(file=>{
+      const reader = new FileReader();
+      reader.onload = ()=>tryInstall(String(reader.result), file.name);
+      reader.onerror = ()=>feedback(`❌ Could not read ${file.name}`, false);
+      reader.readAsText(file);
+    });
+  };
+  document.getElementById('modPasteBtn').onclick = ()=>{
+    const text = document.getElementById('modPaste').value.trim();
+    if(!text){ feedback('Paste some JSON first.', false); return; }
+    tryInstall(text, 'pasted JSON');
+  };
+  document.getElementById('modTemplateBtn').onclick = ()=>{
+    document.getElementById('modPaste').value = JSON.stringify(MODULE_TEMPLATE, null, 2);
+    feedback('Starter template dropped into the box — edit it, then load it.', true);
+  };
+}
+
+// A minimal, valid module used by the "starter template" button.
+const MODULE_TEMPLATE = {
+  name: 'My Add-on Pack', version: '1.0.0', author: 'you',
+  items: [
+    { id:'greater_potion', name:'Greater Healing Potion', type:'consumable', icon:'🧴',
+      uses:2, rarity:2, usableIn:['combat','explore'],
+      desc:'A thick red draught that closes wounds fast.',
+      effects:[{ kind:'heal', amount:'3d4+3' }] },
+    { id:'giants_brew', name:"Giant's Brew", type:'consumable', icon:'🍺',
+      uses:1, usableIn:['combat','explore'],
+      desc:'Bitter and strong. You feel mightier.',
+      effects:[
+        { kind:'buff', stat:'atkMod', amount:3, duration:3 },
+        { kind:'buff', stat:'maxHp', amount:5, duration:3 }
+      ] },
+    { id:'boots_of_haste', name:'Boots of Haste', type:'trinket', icon:'👢',
+      uses:1, usableIn:['explore'],
+      desc:'Cover more ground before the dark notices.',
+      effects:[{ kind:'ap', amount:2 }] }
+  ],
+  enemies: [
+    { id:'cave_troll', name:'Cave Troll', hp:26, def:11, dmg:'1d10', icon:'👺',
+      flavor:'Enormous, slow, and extremely annoyed.' }
+  ],
+  traps: [
+    { id:'rune_snare', name:'Rune Snare', dmg:'2d4', dc:13, icon:'🔯',
+      flavor:'Old glyphs flare underfoot.' }
+  ]
+};
+document.querySelectorAll('[data-codex]').forEach(btn=>{
+  btn.addEventListener('click', ()=>renderCodex(btn.dataset.codex));
+});
+
+/* ================================================================
+   NAV
+   ================================================================ */
+let codexReturnTo = 'title';
+function goto(name){
+  const current = document.querySelector('.screen.active');
+  if(name==='codex' && current && current.id !== 'screen-codex'){
+    codexReturnTo = current.id.replace('screen-','');
+  }
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  window.scrollTo(0,0);
+  if(name==='setup'){ if(SETUP.players.length===0) initSetupDefaults(); renderSetupScreen(); }
+  if(name==='codex'){ renderCodex('items'); }
+  if(name==='game'){ requestAnimationFrame(()=>renderMap()); }
+  if(name==='title'){
+    document.getElementById('resumeBtn').style.display = (STATE && !STATE.over) ? 'inline-block' : 'none';
+  }
+}
+document.querySelectorAll('[data-nav]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    // Don't let navigation abandon an unresolved prompt (combat, a trap, tile placement...).
+    if(document.getElementById('modalRoot').classList.contains('open')) return;
+    goto(btn.dataset.nav);
+  });
+});
+document.getElementById('codexBackBtn').addEventListener('click', ()=>goto(codexReturnTo));
+document.getElementById('resumeBtn').addEventListener('click', ()=>goto('game'));
+
+document.getElementById('beginBtn').addEventListener('click', ()=>{
+  newGame({
+    players: SETUP.players.map(p=>({ name:p.name.trim()||'Adventurer', cls:p.cls })),
+    control: SETUP.control,
+    mode: SETUP.mode,
+    objective: SETUP.objective,
+  });
+});
+document.getElementById('modalBackdrop').addEventListener('click', ()=>{ if(!NET.enabled) closeModal(); });
+document.getElementById('zoomIn').addEventListener('click', ()=>{ STATE.zoom=Math.min(1.6,STATE.zoom+0.15); renderMap(); });
+document.getElementById('zoomOut').addEventListener('click', ()=>{ STATE.zoom=Math.max(0.5,STATE.zoom-0.15); renderMap(); });
+document.getElementById('hostBtn').addEventListener('click', hostRoom);
+document.getElementById('joinToggleBtn').addEventListener('click', ()=>{
+  const box = document.getElementById('joinBox');
+  box.style.display = box.style.display==='none' ? 'block' : 'none';
+});
+document.getElementById('joinBtn').addEventListener('click', ()=>{
+  const code = document.getElementById('joinCode').value;
+  const name = document.getElementById('joinName').value;
+  if(!code.trim()){ netStatus('Enter a room code first.'); return; }
+  joinRoom(code, name);
+});
+document.getElementById('netStartBtn').addEventListener('click', hostStartGame);
+document.getElementById('netLeaveBtn').addEventListener('click', netLeave);
+
+document.getElementById('logHeader').addEventListener('click', ()=>{
+  const panel = document.getElementById('logPanel');
+  panel.classList.toggle('collapsed');
+  document.getElementById('logToggleBtn').textContent = panel.classList.contains('collapsed') ? '▸' : '▾';
+});
+window.addEventListener('resize', ()=>{ if(STATE) renderMap(); });
+
+function initLogCollapseDefault(){
+  const panel = document.getElementById('logPanel');
+  const collapse = window.innerWidth <= 860;
+  panel.classList.toggle('collapsed', collapse);
+  document.getElementById('logToggleBtn').textContent = collapse ? '▸' : '▾';
+}
+
+
+/* ======================================================================
+   PEER-TO-PEER MULTIPLAYER
+   ----------------------------------------------------------------------
+   Host-authoritative. The host runs every rule and owns the only real
+   STATE; clients never mutate anything locally. Clients send *intents*
+   ("explore east"), the host validates and applies them, then broadcasts a
+   full snapshot. That makes desync structurally impossible — there is only
+   ever one simulation — at the cost of a round trip per action, which is
+   fine for a turn-based board game.
+
+   Transport is PeerJS (WebRTC data channels) against its free public
+   broker. The broker only introduces peers; gameplay traffic is direct
+   browser-to-browser.
+   ====================================================================== */
+const NET = {
+  enabled:false,
+  role:null,            // 'host' | 'client'
+  peer:null,
+  conns:[],             // host: connections to clients
+  hostConn:null,        // client: connection to host
+  roomCode:null,
+  roster:[],            // [{peerId, name, cls, seat}]
+  mySeat:null,
+  objective:'endless',
+  transport:null,       // swappable for testing
+};
+
+function netRandomCode(){
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no look-alikes
+  let out = '';
+  for(let i=0;i<5;i++) out += alphabet[Math.floor(Math.random()*alphabet.length)];
+  return out;
+}
+const NET_PREFIX = 'dnspires-';
+
+/* ---------- serialization ----------
+   STATE holds a Map and Infinity values, neither of which survive JSON, so
+   both are converted on the wire and restored on arrival. */
+function serializeState(){
+  if(!STATE) return null;
+  return {
+    config: STATE.config,
+    players: STATE.players.map(p=>({
+      id:p.id, name:p.name, cls:p.cls, hp:p.hp, x:p.x, y:p.y,
+      trophies:p.trophies, statusEffects:p.statusEffects, buffs:(p.buffs||[]).map(b=>({
+        stat:b.stat, amount:b.amount, roundsLeft: b.roundsLeft===Infinity ? -1 : b.roundsLeft
+      })),
+      alive:p.alive, ap:p.ap,
+      items:p.items.map(i=>({ id:i.id, usesLeft: i.usesLeft===Infinity ? -1 : i.usesLeft })),
+    })),
+    activeIndex:STATE.activeIndex, round:STATE.round, level:STATE.level,
+    mapType:STATE.mapType, grid:[...STATE.grid.values()], deck:STATE.deck,
+    logEntries:STATE.logEntries, tilesExploredThisLevel:STATE.tilesExploredThisLevel,
+    bossSpawned:STATE.bossSpawned, treasureFound:STATE.treasureFound,
+    over:STATE.over, pendingClairvoyance:STATE.pendingClairvoyance || null,
+    pending: PENDING_PLACEMENT,
+  };
+}
+function applyState(snap){
+  const keepZoom = STATE ? STATE.zoom : 1;
+  STATE = {
+    config:snap.config, players:snap.players, activeIndex:snap.activeIndex,
+    round:snap.round, level:snap.level, mapType:snap.mapType,
+    grid:new Map(snap.grid.map(t=>[key(t.x,t.y), t])),
+    deck:snap.deck, logEntries:snap.logEntries,
+    tilesExploredThisLevel:snap.tilesExploredThisLevel,
+    bossSpawned:snap.bossSpawned, treasureFound:snap.treasureFound,
+    over:snap.over, pendingClairvoyance:snap.pendingClairvoyance,
+    zoom:keepZoom,
+  };
+  STATE.players.forEach(p=>{
+    p.items.forEach(i=>{ if(i.usesLeft===-1) i.usesLeft = Infinity; });
+    (p.buffs||[]).forEach(b=>{ if(b.roundsLeft===-1) b.roundsLeft = Infinity; });
+  });
+  PENDING_PLACEMENT = snap.pending || null;
+}
+
+/* ---------- prompt mirroring ----------
+   Modals (combat, traps, loot, tile choice) are built by the host as it runs
+   the rules. Rather than re-implement each one remotely, the host ships the
+   rendered modal markup and clients mirror it, reporting clicks back by
+   index. Both sides list clickables with the same selector over the same
+   HTML, so the indices line up. */
+const PROMPT_SELECTOR = '#modalBody button, #modalBody .choice-list .card';
+function snapshotPrompt(){
+  const open = document.getElementById('modalRoot').classList.contains('open');
+  if(!open) return { open:false };
+  return { open:true, html: document.getElementById('modalBody').innerHTML };
+}
+function applyPrompt(prompt){
+  const body = document.getElementById('modalBody');
+  if(!prompt || !prompt.open){ closeModal(); return; }
+  body.innerHTML = prompt.html;
+  openModal();
+  // Clicks are reported to the host by position; the host clicks its own copy.
+  updateModalInteractivity();
+  if(!iControl()) return;   // watching someone else's prompt: no input
+  [...document.querySelectorAll(PROMPT_SELECTOR)].forEach((node, idx)=>{
+    if(node.disabled) return;
+    node.onclick = (ev)=>{
+      ev.preventDefault();
+      netSend({ t:'ui', idx });
+    };
+  });
+}
+
+/* ---------- turn ownership ---------- */
+function mySeatIndex(){ return NET.enabled ? NET.mySeat : STATE.activeIndex; }
+function iControl(){
+  if(!NET.enabled) return true;
+  if(!STATE) return false;
+  return NET.mySeat === STATE.activeIndex;
+}
+
+/* ---------- transport ---------- */
+function netSend(msg){
+  if(!NET.enabled) return;
+  if(NET.role==='client' && NET.hostConn) NET.hostConn.send(msg);
+}
+function netBroadcast(msg){
+  if(NET.role!=='host') return;
+  NET.conns.forEach(c=>{ try{ c.send(msg); }catch(err){ /* dropped peer */ } });
+}
+/* Broadcast synchronously. An earlier version batched via
+   requestAnimationFrame, which browsers throttle (or stop entirely) in
+   background tabs — so the moment the host switched tabs, every client
+   froze. Turn-based traffic is light enough that sending immediately is
+   both simpler and safer. `_syncing` only guards against reentrancy. */
+let _syncing = false;
+function syncNow(){
+  if(NET.role!=='host' || !NET.enabled) return;
+  if(_syncing) return;
+  _syncing = true;
+  try{
+    netBroadcast({ t:'snapshot', state:serializeState(), prompt:snapshotPrompt(), roster:NET.roster });
+  } finally {
+    _syncing = false;
+  }
+}
+
+/* ---------- intents (client -> host) ---------- */
+function sendIntent(intent){ netSend({ t:'intent', intent }); }
+// Every player-triggered action funnels through these so a client never
+// mutates state locally — it only ever asks the host.
+function actExplore(d){ if(NET.role==='client') return sendIntent({a:'explore', d}); tryExplore(d); }
+function actMove(d){    if(NET.role==='client') return sendIntent({a:'move', d});    tryMove(d); }
+function actRotate(){   if(NET.role==='client') return sendIntent({a:'rotate'});     rotatePending(); }
+function actPlace(){    if(NET.role==='client') return sendIntent({a:'place'});      confirmPlacement(); }
+function actEndTurn(){  if(NET.role==='client') return sendIntent({a:'endTurn'});    nextTurn(); }
+function actStairs(){   if(NET.role==='client') return sendIntent({a:'stairs'});     useStairs(); }
+function actRetreat(){  if(NET.role==='client') return sendIntent({a:'retreat'});    retreatToEntrance(); }
+function actItems(){    if(NET.role==='client') return sendIntent({a:'items'});      openItemModal(); }
+function actSwitch(i){  if(NET.role==='client') return sendIntent({a:'switch', i});  switchToPlayer(i); }
+
+function applyIntent(intent, seat){
+  if(!STATE || STATE.over) return;
+  // Authority check: only the seat whose turn it is may act.
+  if(seat !== STATE.activeIndex) return;
+  switch(intent.a){
+    case 'explore': tryExplore(intent.d); break;
+    case 'move':    tryMove(intent.d); break;
+    case 'rotate':  rotatePending(); break;
+    case 'place':   confirmPlacement(); break;
+    case 'endTurn': nextTurn(); break;
+    case 'stairs':  useStairs(); break;
+    case 'retreat': retreatToEntrance(); break;
+    case 'items':   openItemModal(); break;
+    case 'switch':  switchToPlayer(intent.i); break;
+  }
+  syncNow();
+}
+function applyRemoteUiClick(idx, seat){
+  if(!STATE || seat !== STATE.activeIndex) return;
+  const nodes = [...document.querySelectorAll(PROMPT_SELECTOR)];
+  const node = nodes[idx];
+  if(node && !node.disabled) node.click();
+  syncNow();
+}
+
+/* ---------- lobby / roster ---------- */
+function seatOf(peerId){
+  const r = NET.roster.find(x=>x.peerId===peerId);
+  return r ? r.seat : null;
+}
+function renderRoster(){
+  const box = document.getElementById('netRoster');
+  if(!box) return;
+  box.innerHTML = NET.roster.map(r=>{
+    const you = (NET.role==='host' && r.seat===0) || r.peerId===(NET.peer && NET.peer.id);
+    return `<div class="seat-row ${you?'you':''}">
+      <span>${CLASS_DEFS[r.cls].icon}</span>
+      <span class="seat-name">${r.name}${you?' (you)':''}</span>
+      <span class="seat-tag">${r.seat===0?'host':'seat '+(r.seat+1)}</span>
+    </div>`;
+  }).join('') || '<div class="empty-note">Nobody here yet.</div>';
+
+  // Class pickers for your own seat
+  const mine = NET.roster.find(r=>r.seat===NET.mySeat);
+  if(mine){
+    const picker = el('div','pill-row');
+    picker.style.marginTop = '.5rem';
+    Object.entries(CLASS_DEFS).forEach(([cid,cdef])=>{
+      const pill = el('div','pill'+(mine.cls===cid?' active':''), `${cdef.icon} ${cdef.name}`);
+      pill.onclick = ()=>{
+        if(NET.role==='host'){ mine.cls = cid; renderRoster(); pushLobby(); }
+        else netSend({ t:'setClass', cls:cid });
+      };
+      picker.appendChild(pill);
+    });
+    box.appendChild(picker);
+  }
+}
+function pushLobby(){
+  if(NET.role!=='host') return;
+  netBroadcast({ t:'lobby', roster:NET.roster, objective:NET.objective });
+}
+function netStatus(msg){
+  const n = document.getElementById('netStatus');
+  if(n) n.textContent = msg;
+}
+
+/* ---------- host ---------- */
+function hostRoom(){
+  if(typeof Peer === 'undefined'){
+    netStatus('Could not load the networking library — check your connection.');
+    return;
+  }
+  NET.enabled = true; NET.role = 'host';
+  NET.roomCode = netRandomCode();
+  NET.mySeat = 0;
+  NET.roster = [{ peerId:'host', name:'Host', cls:'warrior', seat:0 }];
+
+  document.getElementById('netChoice').style.display='none';
+  document.getElementById('netRoom').style.display='block';
+  document.getElementById('netHostControls').style.display='block';
+  document.getElementById('roomCode').textContent = NET.roomCode;
+  netStatus('Opening room…');
+  renderRoster();
+  renderNetObjective();
+
+  NET.peer = new Peer(NET_PREFIX + NET.roomCode);
+  NET.peer.on('open', ()=> netStatus('Room open. Share the code — waiting for players.'));
+  NET.peer.on('error', (err)=> netStatus('Network error: ' + (err && err.type ? err.type : err)));
+  NET.peer.on('connection', (conn)=>{
+    conn.on('open', ()=>{
+      NET.conns.push(conn);
+      netStatus(`${NET.conns.length} player(s) connected.`);
+    });
+    conn.on('data', (msg)=> handleHostMessage(conn, msg));
+    conn.on('close', ()=>{
+      NET.conns = NET.conns.filter(c=>c!==conn);
+      NET.roster = NET.roster.filter(r=>r.peerId!==conn.peer);
+      renderRoster(); pushLobby(); netStatus('A player disconnected.');
+    });
+  });
+}
+function handleHostMessage(conn, msg){
+  if(!msg || !msg.t) return;
+  if(msg.t==='join'){
+    if(NET.roster.length>=4){ conn.send({ t:'full' }); return; }
+    const seat = NET.roster.length;
+    NET.roster.push({ peerId:conn.peer, name:(msg.name||'Adventurer').slice(0,18), cls:msg.cls||'archer', seat });
+    conn.send({ t:'welcome', seat, roomCode:NET.roomCode });
+    renderRoster(); pushLobby();
+    if(STATE && !STATE.over) syncNow();   // joined mid-run: catch them up
+    return;
+  }
+  if(msg.t==='setClass'){
+    const r = NET.roster.find(x=>x.peerId===conn.peer);
+    if(r && CLASS_DEFS[msg.cls]){ r.cls = msg.cls; renderRoster(); pushLobby(); }
+    return;
+  }
+  if(msg.t==='intent'){ applyIntent(msg.intent, seatOf(conn.peer)); return; }
+  if(msg.t==='ui'){ applyRemoteUiClick(msg.idx, seatOf(conn.peer)); return; }
+}
+function hostStartGame(){
+  newGame({
+    players: NET.roster.map(r=>({ name:r.name, cls:r.cls })),
+    control: 'hotseat',       // each seat is a separate human
+    mode: 'coop',
+    objective: NET.objective,
+  });
+  netBroadcast({ t:'start' });
+  syncNow();
+}
+
+/* ---------- client ---------- */
+function joinRoom(code, name){
+  if(typeof Peer === 'undefined'){
+    netStatus('Could not load the networking library — check your connection.');
+    return;
+  }
+  NET.enabled = true; NET.role = 'client';
+  NET.roomCode = (code||'').trim().toUpperCase();
+  document.getElementById('netChoice').style.display='none';
+  document.getElementById('netRoom').style.display='block';
+  document.getElementById('netClientNote').style.display='block';
+  document.getElementById('roomCode').textContent = NET.roomCode;
+  netStatus('Connecting…');
+
+  NET.peer = new Peer();
+  NET.peer.on('error', (err)=> netStatus('Network error: ' + (err && err.type ? err.type : err)));
+  NET.peer.on('open', ()=>{
+    const conn = NET.peer.connect(NET_PREFIX + NET.roomCode, { reliable:true });
+    NET.hostConn = conn;
+    conn.on('open', ()=>{
+      netStatus('Connected. Waiting for the host…');
+      conn.send({ t:'join', name: name || 'Adventurer', cls:'archer' });
+    });
+    conn.on('data', (msg)=> handleClientMessage(msg));
+    conn.on('close', ()=>{
+      netStatus('Disconnected from host.');
+      document.getElementById('netBanner').innerHTML = '<b>Disconnected</b> — the host has left.';
+    });
+  });
+}
+function handleClientMessage(msg){
+  if(!msg || !msg.t) return;
+  if(msg.t==='welcome'){ NET.mySeat = msg.seat; netStatus(`Joined as seat ${msg.seat+1}.`); return; }
+  if(msg.t==='full'){ netStatus('That room is full.'); return; }
+  if(msg.t==='lobby'){ NET.roster = msg.roster; NET.objective = msg.objective; renderRoster(); return; }
+  if(msg.t==='start'){ goto('game'); initLogCollapseDefault(); return; }
+  if(msg.t==='snapshot'){
+    applyState(msg.state);
+    if(msg.roster) NET.roster = msg.roster;
+    const onGame = document.querySelector('.screen.active');
+    if(!onGame || onGame.id!=='screen-game') goto('game');
+    renderAll();
+    applyPrompt(msg.prompt);
+    return;
+  }
+}
+
+/* ---------- shared UI bits ---------- */
+function renderNetObjective(){
+  const row = document.getElementById('netObjectiveRow');
+  if(!row) return;
+  row.innerHTML='';
+  [['endless','Endless Descent'],['boss','Boss Hunt'],['treasure','Lost Treasure']].forEach(([v,l])=>{
+    const pill = el('div','pill'+(NET.objective===v?' active':''), l);
+    pill.onclick = ()=>{ NET.objective = v; renderNetObjective(); pushLobby(); };
+    row.appendChild(pill);
+  });
+}
+function renderNetBanner(){
+  const b = document.getElementById('netBanner');
+  if(!b) return;
+  if(!NET.enabled || !STATE){ b.classList.remove('show'); return; }
+  b.classList.add('show');
+  const active = STATE.players[STATE.activeIndex];
+  b.innerHTML = iControl()
+    ? `<b>Your turn</b> — room ${NET.roomCode}`
+    : `Waiting for <b>${active ? active.name : '…'}</b> — room ${NET.roomCode}`;
+}
+function netLeave(){
+  try{ if(NET.peer) NET.peer.destroy(); }catch(err){}
+  NET.enabled=false; NET.role=null; NET.peer=null; NET.conns=[]; NET.hostConn=null;
+  NET.roster=[]; NET.mySeat=null; NET.roomCode=null;
+  document.getElementById('netChoice').style.display='block';
+  document.getElementById('netRoom').style.display='none';
+  document.getElementById('netHostControls').style.display='none';
+  document.getElementById('netClientNote').style.display='none';
+  document.getElementById('netBanner').classList.remove('show');
+  goto('title');
+}
+
+/* ---------------------------- BOOT ---------------------------- */
+loadCoreContent();
+initSetupDefaults();
+// Folder modules load asynchronously; refresh the Codex if it's already open.
+loadModulesFromFolder().then(()=>{
+  const active = document.querySelector('.screen.active');
+  if(active && active.id==='screen-codex'){
+    const cur = document.querySelector('[data-codex].active');
+    renderCodex(cur ? cur.dataset.codex : 'items');
+  }
+  if(LOADED_MODULES.length) console.info('Depths & Spires: loaded modules', LOADED_MODULES);
+  if(MODULE_ERRORS.length) console.warn('Depths & Spires: module errors', MODULE_ERRORS);
+});
+</script>
+</body>
+</html>
