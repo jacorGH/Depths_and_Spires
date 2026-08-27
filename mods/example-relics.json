@@ -1,0 +1,125 @@
+{
+  "name": "Lost Relics of the Deep",
+  "version": "1.0.0",
+  "author": "Depths & Spires example pack",
+  "items": [
+    {
+      "id": "greater_potion",
+      "name": "Greater Healing Potion",
+      "type": "consumable",
+      "icon": "🧴",
+      "uses": 2,
+      "rarity": 2,
+      "usableIn": ["combat", "explore"],
+      "desc": "A thick red draught that closes wounds fast. Works mid-fight.",
+      "effects": [{ "kind": "heal", "amount": "3d4+3" }]
+    },
+    {
+      "id": "giants_brew",
+      "name": "Giant's Brew",
+      "type": "consumable",
+      "icon": "🍺",
+      "uses": 1,
+      "usableIn": ["combat", "explore"],
+      "desc": "Bitter and strong. Raises your strength and toughness for a few rounds.",
+      "effects": [
+        { "kind": "buff", "stat": "atkMod", "amount": 3, "duration": 3 },
+        { "kind": "buff", "stat": "maxHp", "amount": 5, "duration": 3 }
+      ]
+    },
+    {
+      "id": "boots_of_haste",
+      "name": "Boots of Haste",
+      "type": "trinket",
+      "icon": "👢",
+      "uses": 1,
+      "usableIn": ["explore"],
+      "desc": "Cover more ground before the dark notices you. Grants extra actions.",
+      "effects": [{ "kind": "ap", "amount": 2 }]
+    },
+    {
+      "id": "oracle_bones",
+      "name": "Oracle Bones",
+      "type": "artifact",
+      "icon": "🦴",
+      "uses": 2,
+      "usableIn": ["explore"],
+      "desc": "Cast them to see four possible paths and choose which one comes true.",
+      "effects": [{ "kind": "deckPeek", "count": 4 }]
+    },
+    {
+      "id": "gamblers_die",
+      "name": "Gambler's Die",
+      "type": "trinket",
+      "icon": "🎲",
+      "uses": 3,
+      "usableIn": ["combat"],
+      "desc": "Roll it before you swing — your next attacks are made with advantage.",
+      "effects": [{ "kind": "roll", "mode": "advantage", "duration": 2 }]
+    },
+    {
+      "id": "antivenom",
+      "name": "Antivenom Vial",
+      "type": "consumable",
+      "icon": "💚",
+      "uses": 1,
+      "usableIn": ["combat", "explore"],
+      "desc": "Purges every lingering ailment from your blood.",
+      "effects": [{ "kind": "cure", "status": "all" }]
+    },
+    {
+      "id": "recall_stone",
+      "name": "Recall Stone",
+      "type": "artifact",
+      "icon": "🪨",
+      "uses": 1,
+      "usableIn": ["explore"],
+      "desc": "Snaps you back to the level entrance in an instant.",
+      "effects": [{ "kind": "teleport", "mode": "start" }]
+    },
+    {
+      "id": "wyrmtooth_blade",
+      "name": "Wyrmtooth Blade",
+      "type": "weapon",
+      "cls": "warrior",
+      "icon": "🗡️",
+      "uses": -1,
+      "desc": "Serrated dragon fang. Bites deep and leaves the wound bleeding.",
+      "onHit": [
+        { "kind": "status", "status": "bleed", "target": "enemy", "duration": 3 },
+        { "kind": "buff", "stat": "atkMod", "amount": 1, "duration": 2, "chance": 0.5 }
+      ]
+    }
+  ],
+  "enemies": [
+    {
+      "id": "cave_troll",
+      "name": "Cave Troll",
+      "hp": 26,
+      "def": 11,
+      "dmg": "1d10",
+      "icon": "👺",
+      "flavor": "Enormous, slow, and extremely annoyed that you're here."
+    },
+    {
+      "id": "wisp",
+      "name": "Corpse Wisp",
+      "hp": 7,
+      "def": 15,
+      "dmg": "1d4",
+      "icon": "👻",
+      "special": "poison",
+      "flavor": "A cold light that drifts just out of reach."
+    }
+  ],
+  "traps": [
+    {
+      "id": "rune_snare",
+      "name": "Rune Snare",
+      "dmg": "2d4",
+      "dc": 13,
+      "icon": "🔯",
+      "flavor": "Old glyphs flare underfoot and clamp shut."
+    }
+  ]
+}
