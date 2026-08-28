@@ -300,6 +300,7 @@ button{font-family:inherit;}
     <div class="title-actions">
       <button class="btn primary" data-nav="setup">New Expedition</button>
       <button class="btn ghost" id="resumeBtn" style="display:none;">Resume Expedition</button>
+      <button class="btn ghost" id="continueBtn" style="display:none;">Continue Saved Game</button>
       <button class="btn ghost" data-nav="lobby">Play with Friends</button>
       <button class="btn ghost" data-nav="codex">Bestiary &amp; Armory</button>
     </div>
@@ -371,6 +372,7 @@ button{font-family:inherit;}
       <div class="tb-item">Round: <b id="tbRound">1</b></div>
       <div class="tb-item">Level: <b id="tbLevel">1</b></div>
       <div class="tb-item">Map: <b id="tbMapType">Depth</b></div>
+      <button class="btn small ghost" id="saveBtn" title="Save &amp; continue">💾</button>
       <button class="btn small ghost" data-nav="codex">Codex</button>
     </div>
     <div id="netBanner"></div>
@@ -928,7 +930,7 @@ function newGame(config){
       hp:CLASS_DEFS[p.cls].maxHp, maxHp:CLASS_DEFS[p.cls].maxHp,
       def:CLASS_DEFS[p.cls].def,
       x:0, y:0,
-      items:[], trophies:[], statusEffects:{}, buffs:[], alive:true, downed:false,
+      items:[], trophies:[], statusEffects:{}, buffs:[], alive:true, downed:false, level:1,
       ap:BASE_AP,
     })),
     activeIndex:0,
@@ -942,7 +944,7 @@ function newGame(config){
     bossSpawned:false,
     treasureFound:false,
     zoom:1,
-    archive:[],
+    floors:{},
     over:false,
     paused:false,
     turnLimit: (config.turnLimit===undefined ? 0 : config.turnLimit),  // seconds; 0 = off
@@ -950,7 +952,8 @@ function newGame(config){
   };
   STATE.players.forEach(p=>{ p.ap = getStat(p,'apMax'); });
   const start = pickStartTile();
-  STATE.grid.set(key(0,0), { type:start.type, rot:start.rot, x:0, y:0, event:null, resolved:true, stairs:false });
+  STATE.grid.set(key(0,0), { type:start.type, rot:start.rot, x:0, y:0, event:null, resolved:true, stairs:false, entrance:true });
+  saveActiveFloor();
   log(`The party descends into the ${STATE.mapType.toLowerCase()}. Level 1 begins.`, 'system');
   logEntranceDescription(0,0);
   goto('game');
@@ -966,6 +969,57 @@ function logEntranceDescription(x,y){
 }
 
 function activePlayer(){ return STATE.players[STATE.activeIndex]; }
+
+/* ---------------------------- FLOORS ----------------------------
+   Each character tracks their own floor, so one person taking a stairway no
+   longer drags the party along. Every floor lives in STATE.floors; STATE.grid
+   is just the working copy of whichever floor we're currently looking at, so
+   the rest of the rules code can keep reading STATE.grid unchanged. The two
+   are kept in step by saveActiveFloor()/loadFloor(), which always run as a
+   pair whenever the viewed floor changes. */
+function saveActiveFloor(){
+  if(!STATE) return;
+  STATE.floors = STATE.floors || {};
+  STATE.floors[STATE.level] = {
+    level: STATE.level,
+    mapType: STATE.mapType,
+    tiles: [...STATE.grid.values()],
+    tilesExplored: STATE.tilesExploredThisLevel || 0,
+  };
+}
+function loadFloor(lvl){
+  const f = STATE.floors[lvl];
+  if(!f) return false;
+  STATE.grid = new Map(f.tiles.map(t=>[key(t.x,t.y), t]));
+  STATE.level = f.level;
+  STATE.mapType = f.mapType;
+  STATE.tilesExploredThisLevel = f.tilesExplored || 0;
+  return true;
+}
+function ensureFloor(lvl, mapType, backTo){
+  STATE.floors = STATE.floors || {};
+  if(STATE.floors[lvl]) return false;
+  const start = pickStartTile();
+  const entrance = { type:start.type, rot:start.rot, x:0, y:0, event:null,
+                     resolved:true, stairs:false, entrance:true };
+  // The way you came in is itself a stairway back, so floors stay connected.
+  if(backTo !== undefined && backTo !== null){
+    entrance.stairs = true;
+    entrance.toLevel = backTo;
+  }
+  STATE.floors[lvl] = { level:lvl, mapType:mapType, tiles:[entrance], tilesExplored:0 };
+  return true;
+}
+// Bring the working grid in line with whoever is acting now.
+function syncFloorToActive(){
+  if(!STATE || !STATE.floors) return;
+  const p = activePlayer();
+  if(p.level === STATE.level) return;
+  saveActiveFloor();
+  ensureFloor(p.level, STATE.mapType);
+  loadFloor(p.level);
+}
+function playersOnFloor(lvl){ return STATE.players.filter(p=>p.level===lvl); }
 
 /* ---------------------------- TURN CLOCK ----------------------------
    The host owns the clock. It publishes an absolute deadline; clients just
@@ -1036,13 +1090,14 @@ function knockDown(p, reason){
 }
 function canAct(p){ return p.alive && !p.downed; }
 function downedAlliesHere(p){
-  return STATE.players.filter(o=>o!==p && o.alive && o.downed && o.x===p.x && o.y===p.y);
+  return STATE.players.filter(o=>o!==p && o.alive && o.downed
+    && o.level===p.level && o.x===p.x && o.y===p.y);
 }
 function reviveAlly(idx){
   const healer = activePlayer();
   const target = STATE.players[idx];
   if(!target || !target.downed) return;
-  if(target.x!==healer.x || target.y!==healer.y) return;
+  if(target.level!==healer.level || target.x!==healer.x || target.y!==healer.y) return;
   if(!hasAP(healer)){ log(`${healer.name} has no actions left to revive with.`, 'system'); renderTurnbar(); return; }
   spendAP(healer);
   target.downed = false;
@@ -1072,6 +1127,7 @@ function switchToPlayer(idx){
   if(!target || !canAct(target)) return;
   if(PENDING_PLACEMENT) return;   // resolve the drawn tile first
   STATE.activeIndex = idx;
+  syncFloorToActive();
   renderAll();
 }
 
@@ -1082,6 +1138,7 @@ function endPartyRound(){
     p.ap = canAct(p) ? getStat(p,'apMax') : 0;
   });
   STATE.round++;
+  saveGame(true);
   const first = STATE.players.findIndex(p=>canAct(p));
   STATE.activeIndex = first>-1 ? first : 0;
   log(`Round ${STATE.round} — the party catches its breath.`, 'system');
@@ -1098,6 +1155,7 @@ function nextTurn(){
     const stillGoing = STATE.players.findIndex(p=>canAct(p) && hasAP(p));
     if(stillGoing>-1) STATE.activeIndex = stillGoing;
     else endPartyRound();
+    syncFloorToActive();
     startTurnClock();
     renderAll();
     return;
@@ -1111,9 +1169,10 @@ function nextTurn(){
     guard++;
   } while(!canAct(STATE.players[i]) && guard <= STATE.players.length);
   if(!canAct(STATE.players[i])){ endGame(false, 'The whole party lies broken in the dark.'); return; }
-  if(i <= STATE.activeIndex) STATE.round++;
+  if(i <= STATE.activeIndex){ STATE.round++; saveGame(true); }
   STATE.activeIndex = i;
   STATE.players[i].ap = getStat(STATE.players[i],'apMax');
+  syncFloorToActive();
   startTurnClock();
   renderAll();
 }
@@ -1243,22 +1302,30 @@ function useStairs(){
   const p = activePlayer();
   const tile = STATE.grid.get(key(p.x,p.y));
   if(!tile || !tile.stairs) return;
-  STATE.level++;
-  STATE.mapType = STATE.mapType==='Depth' ? 'Spire' : (Math.random()<0.5?'Depth':'Spire');
-  // Keep the finished floor so it can be revisited from the level browser.
-  STATE.archive = STATE.archive || [];
-  STATE.archive.push({
-    level: STATE.level - 1,
-    mapType: STATE.mapType,
-    tiles: [...STATE.grid.values()],
-  });
-  STATE.grid = new Map();
-  const start = pickStartTile();
-  STATE.grid.set(key(0,0), { type:start.type, rot:start.rot, x:0, y:0, event:null, resolved:true, stairs:false });
-  STATE.tilesExploredThisLevel = 0;
-  for(const pl of STATE.players){ pl.x=0; pl.y=0; pl.ap=getStat(pl,'apMax'); }
-  log(`The party takes the stairs. Level ${STATE.level} begins — a new ${STATE.mapType.toLowerCase()} unfolds.`, 'system');
-  logEntranceDescription(0,0);
+  if(!hasAP(p)){ log(`${p.name} has no actions left to take the stairs.`, 'system'); renderTurnbar(); return; }
+
+  const fromLevel = STATE.level;
+  const target = (tile.toLevel !== undefined && tile.toLevel !== null) ? tile.toLevel : fromLevel + 1;
+
+  saveActiveFloor();
+  const fresh = ensureFloor(
+    target,
+    target > fromLevel
+      ? (STATE.mapType==='Depth' ? 'Spire' : (Math.random()<0.5?'Depth':'Spire'))
+      : STATE.mapType,
+    target > fromLevel ? fromLevel : undefined
+  );
+  loadFloor(target);
+
+  // Only the character who used the stairway travels.
+  p.level = target;
+  p.x = 0; p.y = 0;
+  spendAP(p);
+
+  const others = playersOnFloor(fromLevel).length;
+  log(`${p.name} takes the stairway to Level ${target}${fresh ? ` — a new ${STATE.mapType.toLowerCase()} unfolds` : ''}.`, 'system');
+  if(others) log(`${others} of the party remain on Level ${fromLevel}.`, 'system');
+  if(fresh) logEntranceDescription(0,0);
   renderAll();
 }
 
@@ -1735,6 +1802,12 @@ function renderTopbar(){
   document.getElementById('tbPlayer').textContent = `${activePlayer().name} (${CLASS_DEFS[activePlayer().cls].name})`;
   document.getElementById('tbRound').textContent = STATE.round;
   document.getElementById('tbLevel').textContent = STATE.level;
+  const spread = new Set(STATE.players.filter(p=>p.alive).map(p=>p.level));
+  const lvlEl = document.getElementById('tbLevel');
+  lvlEl.title = spread.size>1
+    ? 'Party is split across levels ' + [...spread].sort((a,b)=>a-b).join(', ')
+    : 'Whole party on this level';
+  lvlEl.innerHTML = STATE.level + (spread.size>1 ? ' <span style="color:var(--ember-bright)">⑂</span>' : '');
   document.getElementById('tbMapType').textContent = STATE.mapType;
 }
 
@@ -1794,6 +1867,8 @@ function renderTurnbar(){
   const tile = STATE.grid.get(key(p.x,p.y));
   const ap = p.ap||0;
   let hint = `${p.name} — ${ap}/${getStat(p,'apMax')} action${ap===1?'':'s'} left. `;
+  const withMe = playersOnFloor(p.level).filter(o=>o!==p && o.alive).length;
+  if(withMe===0 && STATE.players.filter(o=>o.alive).length>1) hint += 'alone on this level. ';
   if(downedAlliesHere(p).length) hint += `${downedAlliesHere(p).length} ally down here! `;
   if(ap===0) hint += 'End turn to continue. ';
   else {
@@ -1900,11 +1975,12 @@ const CELL_BASE = 96;
    else's business, so it never goes into a snapshot. `follow` snaps to the
    active player; panning turns it off until you recentre. */
 const VIEW = { follow:true, x:0, y:0, archive:null };
-function viewingArchive(){ return VIEW.archive !== null; }
+function viewingArchive(){ return VIEW.archive !== null && VIEW.archive !== STATE.level; }
+function viewedLevel(){ return viewingArchive() ? VIEW.archive : STATE.level; }
 function currentGrid(){
   if(!viewingArchive()) return STATE.grid;
-  const a = STATE.archive[VIEW.archive];
-  return new Map(a.tiles.map(t=>[key(t.x,t.y), t]));
+  const f = STATE.floors[VIEW.archive];
+  return f ? new Map(f.tiles.map(t=>[key(t.x,t.y), t])) : new Map();
 }
 function recenterView(){
   VIEW.follow = true;
@@ -1974,7 +2050,7 @@ function renderMap(){
 
     const avatarLayer = el('div','avatar-layer');
     STATE.players.forEach(pl=>{
-      if(pl.x===t.x && pl.y===t.y && pl.alive){
+      if(pl.x===t.x && pl.y===t.y && pl.alive && pl.level===viewedLevel()){
         if(pl.downed){
           // The body stays on the tile it fell on, so allies can find it.
           const body = el('div','avatar-token downed-token', '💀');
@@ -2418,9 +2494,7 @@ function goto(name){
   if(name==='setup'){ if(SETUP.players.length===0) initSetupDefaults(); renderSetupScreen(); }
   if(name==='codex'){ renderCodex('items'); }
   if(name==='game'){ requestAnimationFrame(()=>renderMap()); }
-  if(name==='title'){
-    document.getElementById('resumeBtn').style.display = (STATE && !STATE.over) ? 'inline-block' : 'none';
-  }
+  if(name==='title') refreshTitleButtons();
 }
 document.querySelectorAll('[data-nav]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -2429,8 +2503,24 @@ document.querySelectorAll('[data-nav]').forEach(btn=>{
     goto(btn.dataset.nav);
   });
 });
+document.getElementById('saveBtn').addEventListener('click', openSaveMenu);
 document.getElementById('codexBackBtn').addEventListener('click', ()=>goto(codexReturnTo));
 document.getElementById('resumeBtn').addEventListener('click', ()=>goto('game'));
+/* The title screen is active from markup on first paint, so goto('title')
+   never runs at boot — this has to be called explicitly too. */
+function refreshTitleButtons(){
+  const resume = document.getElementById('resumeBtn');
+  const cont = document.getElementById('continueBtn');
+  if(resume) resume.style.display = (STATE && !STATE.over) ? 'inline-block' : 'none';
+  if(cont){
+    const sv = readSave();
+    cont.style.display = sv ? 'inline-block' : 'none';
+    if(sv) cont.textContent = `Continue — Level ${sv.level}`;
+  }
+}
+document.getElementById('continueBtn').addEventListener('click', ()=>{
+  if(!continueGame()) alert('That saved game could not be read.');
+});
 
 document.getElementById('beginBtn').addEventListener('click', ()=>{
   newGame({
@@ -2512,30 +2602,31 @@ document.getElementById('levelsBtn').addEventListener('click', openLevelBrowser)
 
 /* ---------- level browser ---------- */
 function openLevelBrowser(){
-  const arch = STATE.archive || [];
+  saveActiveFloor();
+  const levels = Object.keys(STATE.floors).map(Number).sort((a,b)=>a-b);
   const b = document.getElementById('modalBody');
-  const rows = arch.map((a,i)=>
-    `<div class="card" data-arch="${i}" style="cursor:pointer;">
-       <div class="cardtype">${a.mapType}</div>
-       <div class="cardname">Level ${a.level}</div>
-       <div class="carddesc">${a.tiles.length} tiles explored</div>
-     </div>`).join('');
+  const rows = levels.map(lv=>{
+    const f = STATE.floors[lv];
+    const here = STATE.players.filter(p=>p.alive && p.level===lv);
+    const who = here.length
+      ? here.map(p=>`${p.downed?'💀':CLASS_DEFS[p.cls].icon} ${p.name}`).join(', ')
+      : 'empty';
+    const isCurrent = lv===STATE.level;
+    return `<div class="card" data-arch="${lv}" style="cursor:pointer;${isCurrent?'border-color:var(--ember);':''}">
+       <div class="cardtype">${f.mapType}${isCurrent?' · showing':''}</div>
+       <div class="cardname">Level ${lv}</div>
+       <div class="carddesc">${f.tiles.length} tiles — ${who}</div>
+     </div>`;
+  }).join('');
   b.innerHTML = `<h2>🗺 Levels</h2>
-    <div class="modal-sub">Look back at floors you've already cleared. Viewing is read-only.</div>
-    <div class="choice-list" id="archList">
-      <div class="card" data-arch="current" style="cursor:pointer;border-color:var(--ember);">
-        <div class="cardtype">${STATE.mapType}</div>
-        <div class="cardname">Level ${STATE.level} — current</div>
-        <div class="carddesc">Where the party is now</div>
-      </div>
-      ${rows || '<div class="empty-note">No earlier levels yet — take a stairway to bank one.</div>'}
-    </div>
+    <div class="modal-sub">The party can be split across floors. Any level other than the one you're playing is read-only.</div>
+    <div class="choice-list" id="archList">${rows}</div>
     <div class="modal-actions"><button class="btn ghost" id="archClose">Close</button></div>`;
   b.querySelectorAll('[data-arch]').forEach(card=>{
     card.onclick = ()=>{
-      const v = card.dataset.arch;
+      const v = parseInt(card.dataset.arch,10);
       closeModal();
-      if(v==='current') closeArchive(); else openArchive(parseInt(v,10));
+      if(v===STATE.level) closeArchive(); else openArchive(v);
     };
   });
   document.getElementById('archClose').onclick = closeModal;
@@ -2545,7 +2636,8 @@ function renderArchiveBar(){
   const bar = document.getElementById('archiveBar');
   if(!bar) return;
   if(!viewingArchive()){ bar.classList.remove('show'); bar.innerHTML=''; return; }
-  const a = STATE.archive[VIEW.archive];
+  const a = STATE.floors[VIEW.archive];
+  if(!a){ bar.classList.remove('show'); return; }
   bar.classList.add('show');
   bar.innerHTML = `<span>🗺 Viewing Level ${a.level} (${a.mapType}) — read only</span>
     <span style="flex:1"></span>
@@ -2636,6 +2728,7 @@ function roomPeerId(code, gen){ return NET_PREFIX + code + (gen ? '-g'+gen : '')
    both are converted on the wire and restored on arrival. */
 function serializeState(){
   if(!STATE) return null;
+  saveActiveFloor();   // flush the working grid into floors before sending
   return {
     config: STATE.config,
     players: STATE.players.map(p=>({
@@ -2643,7 +2736,7 @@ function serializeState(){
       trophies:p.trophies, statusEffects:p.statusEffects, buffs:(p.buffs||[]).map(b=>({
         stat:b.stat, amount:b.amount, roundsLeft: b.roundsLeft===Infinity ? -1 : b.roundsLeft
       })),
-      alive:p.alive, downed:!!p.downed, ap:p.ap,
+      alive:p.alive, downed:!!p.downed, ap:p.ap, level:(p.level||1),
       items:p.items.map(i=>({ id:i.id, usesLeft: i.usesLeft===Infinity ? -1 : i.usesLeft })),
     })),
     activeIndex:STATE.activeIndex, round:STATE.round, level:STATE.level,
@@ -2652,7 +2745,7 @@ function serializeState(){
     bossSpawned:STATE.bossSpawned, treasureFound:STATE.treasureFound,
     over:STATE.over, pendingClairvoyance:STATE.pendingClairvoyance || null,
     paused:STATE.paused, turnLimit:STATE.turnLimit, turnEndsAt:STATE.turnEndsAt,
-    archive: STATE.archive || [],
+    floors: STATE.floors || {},
     pending: PENDING_PLACEMENT,
   };
 }
@@ -2667,7 +2760,7 @@ function applyState(snap){
     bossSpawned:snap.bossSpawned, treasureFound:snap.treasureFound,
     over:snap.over, pendingClairvoyance:snap.pendingClairvoyance,
     paused:snap.paused, turnLimit:snap.turnLimit, turnEndsAt:snap.turnEndsAt,
-    archive: snap.archive || [],
+    floors: snap.floors || {},
     zoom:keepZoom,
   };
   STATE.players.forEach(p=>{
@@ -3154,6 +3247,152 @@ function netLeave(){
   goto('title');
 }
 
+/* ======================================================================
+   SAVE & CONTINUE
+   ----------------------------------------------------------------------
+   Two independent routes, because localStorage isn't always available (it
+   throws in some embedded webviews and in private browsing). Autosave uses
+   localStorage when it works; the file route always works and is also how
+   you move a run between devices.
+   ====================================================================== */
+const SAVE_KEY = 'depths-and-spires:save:v1';
+
+function buildSave(){
+  return {
+    format: 1,
+    savedAt: Date.now(),
+    level: STATE.level,
+    round: STATE.round,
+    party: STATE.players.map(p=>({ name:p.name, cls:p.cls })),
+    state: serializeState(),      // flushes the working floor for us
+  };
+}
+function storageAvailable(){
+  try{
+    const probe='__dns_probe__';
+    localStorage.setItem(probe,'1'); localStorage.removeItem(probe);
+    return true;
+  }catch(err){ return false; }
+}
+function saveGame(quiet){
+  if(!STATE || STATE.over) return false;
+  // In a network game only the host holds authoritative state.
+  if(NET.enabled && NET.role!=='host') return false;
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify(buildSave()));
+    if(!quiet) log('Progress saved to this device.', 'system');
+    return true;
+  }catch(err){
+    if(!quiet) log('Could not save to this device — use "Download save" instead.', 'system');
+    return false;
+  }
+}
+function readSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(err){ return null; }
+}
+function hasSave(){ return !!readSave(); }
+function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(err){} }
+
+function restoreSave(save){
+  if(!save || !save.state) return false;
+  applyState(save.state);
+  if(STATE.floors && Object.keys(STATE.floors).length){
+    // applyState rebuilt floors; make the acting character's floor live.
+    const lvl = activePlayer() ? activePlayer().level : STATE.level;
+    if(!loadFloor(lvl)) loadFloor(STATE.level);
+  }
+  VIEW.archive = null; VIEW.follow = true;
+  goto('game');
+  initLogCollapseDefault();
+  startTurnClock();
+  renderAll();
+  log('Expedition resumed.', 'system');
+  if(NET.role==='host') syncNow();
+  return true;
+}
+function continueGame(){
+  const save = readSave();
+  if(!save){ return false; }
+  return restoreSave(save);
+}
+function downloadSave(){
+  if(!STATE) return;
+  const data = JSON.stringify(buildSave(), null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+  a.href = url; a.download = `depths-and-spires-L${STATE.level}-${stamp}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  log('Save file downloaded.', 'system');
+}
+function loadSaveFromFile(file, onDone){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const save = JSON.parse(String(reader.result));
+      if(!save.state) throw new Error('not a Depths & Spires save');
+      restoreSave(save);
+      if(onDone) onDone(true, save);
+    }catch(err){ if(onDone) onDone(false, String(err.message||err)); }
+  };
+  reader.onerror = ()=>{ if(onDone) onDone(false, 'could not read that file'); };
+  reader.readAsText(file);
+}
+
+function openSaveMenu(){
+  const b = document.getElementById('modalBody');
+  const canStore = storageAvailable();
+  const isGuest = NET.enabled && NET.role!=='host';
+  const existing = readSave();
+  b.innerHTML = `<h2>💾 Save &amp; Continue</h2>
+    <div class="modal-sub">${isGuest
+      ? 'The host holds the authoritative game, so saving is done on their device.'
+      : 'Progress autosaves each round. You can also keep a file copy.'}</div>
+    ${existing ? `<div class="card" style="margin-bottom:.8rem;">
+        <div class="cardtype">saved game on this device</div>
+        <div class="cardname">Level ${existing.level} · round ${existing.round}</div>
+        <div class="carddesc">${(existing.party||[]).map(p=>p.name).join(', ')}<br>
+          ${new Date(existing.savedAt).toLocaleString()}</div>
+      </div>` : ''}
+    ${!canStore ? '<div class="empty-note" style="margin-bottom:.8rem;">This browser is blocking local storage, so autosave is off. Use the file options below.</div>' : ''}
+    <div class="modal-actions">
+      ${isGuest ? '' : '<button class="btn small primary" id="svSave">Save now</button>'}
+      <button class="btn small ghost" id="svDownload">Download save</button>
+      ${isGuest ? '' : '<button class="btn small ghost" id="svUpload">Load a save file</button>'}
+    </div>
+    <input type="file" id="svFile" accept=".json,application/json" style="display:none;">
+    <div id="svFeedback" class="carddesc" style="margin-top:.7rem;"></div>
+    <div class="modal-actions" style="margin-top:.4rem;">
+      <button class="btn small ghost" id="svClose">Close</button>
+    </div>`;
+  const fb = (msg, good)=>{
+    document.getElementById('svFeedback').innerHTML =
+      `<span style="color:${good?'var(--verdigris)':'var(--blood-bright)'}">${msg}</span>`;
+  };
+  const sv = document.getElementById('svSave');
+  if(sv) sv.onclick = ()=> fb(saveGame() ? '✅ Saved to this device.' : '❌ This browser blocked local storage — download a file instead.', saveGame());
+  document.getElementById('svDownload').onclick = ()=>{ downloadSave(); fb('✅ File downloaded.', true); };
+  const up = document.getElementById('svUpload');
+  if(up){
+    up.onclick = ()=> document.getElementById('svFile').click();
+    document.getElementById('svFile').onchange = (ev)=>{
+      const f = ev.target.files && ev.target.files[0];
+      if(!f) return;
+      loadSaveFromFile(f, (okFlag, info)=>{
+        if(okFlag) closeModal();
+        else fb('❌ '+info, false);
+      });
+    };
+  }
+  document.getElementById('svClose').onclick = closeModal;
+  openModal();
+}
+
 /* ---------------------------- BOOT ---------------------------- */
 // One shared heartbeat drives the turn clock. The host uses it to enforce the
 // limit; clients use it purely to redraw their countdown.
@@ -3161,6 +3400,7 @@ setInterval(()=>{ try{ tickTurnClock(); }catch(err){} }, 1000);
 
 loadCoreContent();
 initSetupDefaults();
+refreshTitleButtons();
 // Folder modules load asynchronously; refresh the Codex if it's already open.
 loadModulesFromFolder().then(()=>{
   const active = document.querySelector('.screen.active');

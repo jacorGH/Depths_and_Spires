@@ -178,3 +178,51 @@ off-turn; pausing freezes the clock and blocks all actions until resumed.
   something out on first live use.
 - If *every* player disconnects at once, the run is gone. There's no save file.
 - Rejoin matches on name, so two players sharing a name in one room will collide.
+
+
+---
+
+# Session notes: split parties, save files, icon paths
+
+## Levels are per-character now
+Taking a stairway moves **only the character who took it**. Everyone else stays
+where they are.
+
+- Every floor persists in `STATE.floors`. `STATE.grid` is just the working copy of
+  whichever floor is on screen, so the rules code reads it unchanged.
+- The board follows whoever is acting — end a turn and it switches to that
+  character's floor automatically.
+- The **entrance tile of a new floor is a stairway back**, so floors stay linked in
+  both directions.
+- Characters only appear on the floor they're actually standing on. The Level
+  readout in the top bar shows a **⑂** when the party is split.
+- Reviving requires being on the same **floor and tile**.
+- The 🗺 browser lists every known floor and who is on it. Anything other than the
+  floor you're playing is read-only.
+
+## Save & continue
+Two independent routes, because some webviews and private-browsing modes block
+local storage entirely:
+
+- **Autosave** to this device at the end of every round. The title screen then
+  offers **Continue — Level N**.
+- **Download save / Load a save file** (JSON) — always works, and is how you move a
+  run between devices. Roughly 2-3 KB.
+
+Both are behind the **💾** button in the top bar. In a network game only the host
+can save or load, since the host holds the authoritative state.
+
+A save carries everything: every floor, per-character levels and positions,
+inventories, trophies, buffs, downed state, the log, and the tile deck.
+
+## Icon paths
+The HTML now references **external** icon files rather than inlined base64:
+
+```html
+<link rel="icon" href="icon-192x192.png">
+<link rel="apple-touch-icon" href="icon-192x192.png">
+```
+
+So `icon-192x192.png` must sit **next to the HTML**. `manifest.webmanifest` has been
+updated to match. Files provided: `icon-192x192.png` (repo root),
+`icons/icon-512x512.png`, `icons/icon-maskable-512.png`.
