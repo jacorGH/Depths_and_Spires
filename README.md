@@ -125,3 +125,56 @@ Only the seat whose turn it is can act. Everyone else sees a read-only board and
   PeerJS's free broker provides no TURN relay, so those cases will fail to connect.
 - The public broker is best-effort and rate-limited. For anything serious, run your
   own PeerServer and point `new Peer()` at it.
+
+
+---
+
+# Session notes: seats, downs, host handover, clock
+
+## Naming
+The host enters a name on the lobby screen before creating a room (it used to be
+hard-coded "Host"). Clients enter theirs when joining.
+
+## Going down, and getting back up
+0 HP no longer removes a character. They go **down**: a skull token stays on the
+tile where they fell, they take no turns, and they keep their gear. Any ally who
+reaches that tile gets a **✚ Revive** button — one action, back up with 1d4+2 HP,
+acting again next round. The run only ends when the **whole party** is down at
+once.
+
+## Host handover
+If the host drops, clients don't freeze. Every client already holds a full
+snapshot, so one can take over:
+
+- The successor is **deterministic** — the connected seat with the lowest number.
+  Every client computes the same answer, which matters because clients have no
+  connections to each other and can't negotiate.
+- The successor opens a new peer id at the next **generation**
+  (`dnspires-ABCDE-g1`) and continues from its snapshot. Everyone else
+  reconnects to that id, retrying while it comes up.
+- The **room code the players see never changes** — only the internal generation.
+- The departed host's seat is held, not deleted.
+
+## Rejoining
+A dropped player's seat is **held open** mid-run. Reconnecting with the same name
+reclaims that seat, character, inventory and position. Seats are matched by name
+because peer ids change on every reconnect.
+
+If it's a disconnected player's turn, the turn passes on automatically so the
+table isn't stuck waiting.
+
+## Turn clock and pause
+Optional limit (off / 30s / 1min / 2min), set in the lobby (multiplayer) or on the
+setup screen (single player). Running out **skips the turn**; a tile drawn but not
+placed goes back to the deck rather than being lost.
+
+The **host owns the clock** and publishes an absolute deadline — clients render
+the countdown from that, so no one's timer drifts. **Anyone can pause**, including
+off-turn; pausing freezes the clock and blocks all actions until resumed.
+
+## Known limits
+- Host handover has been tested for successor election and state carry-over, but
+  **not against real WebRTC** — the sandbox has no network. Expect to shake
+  something out on first live use.
+- If *every* player disconnects at once, the run is gone. There's no save file.
+- Rejoin matches on name, so two players sharing a name in one room will collide.
