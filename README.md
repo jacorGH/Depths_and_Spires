@@ -226,3 +226,69 @@ The HTML now references **external** icon files rather than inlined base64:
 So `icon-192x192.png` must sit **next to the HTML**. `manifest.webmanifest` has been
 updated to match. Files provided: `icon-192x192.png` (repo root),
 `icons/icon-512x512.png`, `icons/icon-maskable-512.png`.
+
+
+---
+
+# Module Studio (in-game authoring)
+
+**Title screen → 🛠 Module Studio**, or the **🛠** button in the top bar mid-run.
+
+Build content with forms instead of hand-written JSON:
+
+- **Items** — name, icon, type, class lock, uses, rarity, where it's usable, description.
+- **Effect builder** — pick an effect from a dropdown and only the fields that effect
+  actually uses appear. Separate lists for *when used* and *when the holder lands a
+  hit*, each with an optional chance.
+- **Enemies / Traps** — HP, defence, damage dice, DC, flavour, poison, boss flag.
+- **Live preview** rendered with the same card component the Codex uses, so what you
+  see is what players will see.
+- **Validation as you type** — bad dice (`banana`), missing names, duplicate ids and
+  effect-less items are all flagged before export.
+
+## Testing without leaving the game
+
+- **▶ Test in game** registers the draft into the running session — it can appear as
+  loot and shows up in the Codex.
+- **Give to active character** puts an item straight into the current character's pack.
+- **Fight it now** stages an encounter with the enemy you're editing.
+
+The Studio is reachable mid-run, so you can tweak a value and re-test in seconds.
+
+## Export
+
+**Download .json**, **Copy JSON** (falls back to a selectable box where clipboard
+access is blocked), or **Import…** to load an existing module back in for editing.
+The output is exactly the module format the loader already reads — the Studio runs
+its output through the same `validateModule` check on the way out.
+
+Drafts autosave to the device, so a half-built pack survives a reload.
+
+## One schema, one source of truth
+
+The effect list in the Studio is generated from the same schema the engine uses.
+Adding a new effect kind to the engine makes it authorable in the Studio
+automatically — the two can't drift apart.
+
+---
+
+# Fix: joining after the game has started
+
+A player who missed the start — or whose first connection attempt failed — could
+never get in. The host was refusing every join once a run existed.
+
+Now it's **drop-in co-op**: a late joiner is added to the party as a new character
+and placed at the entrance of whichever floor most of the party is on, with a full
+turn of actions. Rejoining a held seat still reclaims the original character rather
+than making a duplicate, and a full room (4) is still refused.
+
+Two related robustness fixes:
+
+- **Slow handshakes no longer get skipped.** Room discovery gave each candidate id
+  3.5 s and then moved on, which on mobile could step past a room that really was
+  there. It now allows 9 s and retries an id before advancing.
+- **"Network error: peer-unavailable" is no longer shown during normal probing.** That
+  message is an expected outcome while checking for a newer host generation; it's now
+  swallowed, and only a genuine "no room found" is reported.
+- **Host id collisions self-heal.** Re-hosting quickly could hit a broker-held id and
+  leave a dead room on screen; the host now issues a fresh code and says so.

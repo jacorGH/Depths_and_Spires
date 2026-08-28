@@ -200,6 +200,32 @@ button{font-family:inherit;}
 #modalBody.spectating{pointer-events:none;opacity:.8;}
 #modalBody.spectating::after{content:'Another player is acting…';display:block;margin-top:.8rem;
   font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--ink-faint);text-align:center;}
+.studio-wrap{max-width:760px;margin:0 auto;width:100%;padding:1.5rem 1rem 3rem;}
+.studio-wrap label{display:block;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;margin-bottom:.6rem;}
+.studio-wrap input[type=text],.studio-wrap input[type=number],.studio-wrap select,.studio-wrap textarea{
+  display:block;width:100%;margin-top:.25rem;background:var(--bg);border:1px solid var(--line);
+  color:var(--ink);padding:.55em .6em;border-radius:3px;font-family:'Spectral',serif;font-size:.92rem;
+  text-transform:none;letter-spacing:normal;}
+.studio-wrap textarea{min-height:64px;font-size:.85rem;}
+.studio-wrap input[type=checkbox]{width:auto;margin-right:.4em;vertical-align:middle;}
+.field-row{display:flex;gap:.7rem;flex-wrap:wrap;}
+.field-row > label{flex:1;min-width:130px;}
+.studio-bar{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1.2rem;padding-top:1rem;
+  border-top:1px solid var(--line);}
+.entry-row{display:flex;align-items:center;gap:.6rem;padding:.6rem .7rem;border:1px solid var(--line);
+  border-radius:3px;margin-bottom:.45rem;background:var(--bg-panel-2);}
+.entry-row .er-icon{font-size:1.3rem;}
+.entry-row .er-body{flex:1;min-width:0;}
+.entry-row .er-name{font-weight:600;font-size:.92rem;}
+.entry-row .er-meta{font-family:'IBM Plex Mono',monospace;font-size:.66rem;color:var(--ink-faint);}
+.effect-card{border:1px solid var(--line-bright);border-radius:4px;padding:.6rem;margin-bottom:.5rem;
+  background:rgba(255,255,255,.02);}
+.effect-card .ec-head{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;}
+.effect-card .ec-head select{margin-top:0;}
+.studio-preview{position:sticky;bottom:0;}
+.subhead{font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-faint);margin:1.2rem 0 .5rem;}
 #archiveBar{position:absolute;top:0;left:0;right:0;padding:.45rem .8rem;background:rgba(20,15,12,.92);
   border-bottom:1px solid var(--line);display:none;align-items:center;gap:.6rem;z-index:9;
   font-family:'IBM Plex Mono',monospace;font-size:.75rem;color:var(--gold);}
@@ -303,6 +329,7 @@ button{font-family:inherit;}
       <button class="btn ghost" id="continueBtn" style="display:none;">Continue Saved Game</button>
       <button class="btn ghost" data-nav="lobby">Play with Friends</button>
       <button class="btn ghost" data-nav="codex">Bestiary &amp; Armory</button>
+      <button class="btn ghost" id="titleStudioBtn">🛠 Module Studio</button>
     </div>
   </section>
 
@@ -373,6 +400,7 @@ button{font-family:inherit;}
       <div class="tb-item">Level: <b id="tbLevel">1</b></div>
       <div class="tb-item">Map: <b id="tbMapType">Depth</b></div>
       <button class="btn small ghost" id="saveBtn" title="Save &amp; continue">💾</button>
+      <button class="btn small ghost" id="gameStudioBtn" title="Module Studio">🛠</button>
       <button class="btn small ghost" data-nav="codex">Codex</button>
     </div>
     <div id="netBanner"></div>
@@ -415,6 +443,48 @@ button{font-family:inherit;}
       <h1 class="display" style="font-size:2.4rem; color:var(--gold);" id="endTitle">The Depths Claim You</h1>
       <p id="endBody" style="color:var(--ink-dim); max-width:520px; margin:1rem auto 2rem;"></p>
       <button class="btn primary" data-nav="title">Return to Title</button>
+    </div>
+  </section>
+
+  <!-- MODULE STUDIO -->
+  <section id="screen-studio" class="screen">
+    <div class="studio-wrap">
+      <div class="eyebrow">Modding</div>
+      <h2 style="font-size:1.6rem;margin:.3rem 0 .3rem;">Module Studio</h2>
+      <p style="color:var(--ink-dim);font-size:.88rem;margin:0 0 1.2rem;">
+        Build items, enemies and traps with forms instead of hand-written JSON, try them
+        in a live game, then export a module file.
+      </p>
+
+      <div class="card" style="margin-bottom:1rem;">
+        <div class="cardtype">module details</div>
+        <div class="field-row">
+          <label>Name<input type="text" id="stName" placeholder="My Add-on Pack"></label>
+          <label style="max-width:110px;">Version<input type="text" id="stVersion" placeholder="1.0.0"></label>
+        </div>
+        <label>Author<input type="text" id="stAuthor" placeholder="you"></label>
+      </div>
+
+      <div class="codex-tabs" id="studioTabs">
+        <button class="btn small pill active" data-studio="items">Items</button>
+        <button class="btn small pill" data-studio="enemies">Enemies</button>
+        <button class="btn small pill" data-studio="traps">Traps</button>
+      </div>
+
+      <div id="studioList"></div>
+      <div id="studioEditor"></div>
+
+      <div class="studio-bar">
+        <button class="btn small primary" id="stTest">▶ Test in game</button>
+        <button class="btn small ghost" id="stDownload">⬇ Download .json</button>
+        <button class="btn small ghost" id="stCopy">Copy JSON</button>
+        <button class="btn small ghost" id="stImport">Import…</button>
+        <input type="file" id="stFile" accept=".json,application/json" style="display:none;">
+        <button class="btn small danger" id="stClear">Clear draft</button>
+      </div>
+      <div id="stFeedback" class="carddesc" style="margin-top:.6rem;min-height:1.2em;"></div>
+
+      <div style="margin-top:1.6rem;"><button class="btn ghost" id="studioBackBtn">&larr; Back</button></div>
     </div>
   </section>
 
@@ -2404,6 +2474,7 @@ function renderModulesTab(grid){
       <div class="modal-actions" style="margin-top:.6rem;">
         <button class="btn small primary" id="modPasteBtn">Load pasted JSON</button>
         <button class="btn small ghost" id="modTemplateBtn">Copy starter template</button>
+        <button class="btn small ghost" id="modStudioBtn">🛠 Open Module Studio</button>
       </div>
       <div id="modFeedback" class="carddesc" style="margin-top:.6rem;"></div>
     </div>
@@ -2440,6 +2511,7 @@ function renderModulesTab(grid){
     if(!text){ feedback('Paste some JSON first.', false); return; }
     tryInstall(text, 'pasted JSON');
   };
+  document.getElementById('modStudioBtn').onclick = openStudio;
   document.getElementById('modTemplateBtn').onclick = ()=>{
     document.getElementById('modPaste').value = JSON.stringify(MODULE_TEMPLATE, null, 2);
     feedback('Starter template dropped into the box — edit it, then load it.', true);
@@ -2493,6 +2565,7 @@ function goto(name){
   window.scrollTo(0,0);
   if(name==='setup'){ if(SETUP.players.length===0) initSetupDefaults(); renderSetupScreen(); }
   if(name==='codex'){ renderCodex('items'); }
+  if(name==='studio'){ if(!STUDIO) STUDIO = loadStudioDraft(); renderStudio(); }
   if(name==='game'){ requestAnimationFrame(()=>renderMap()); }
   if(name==='title') refreshTitleButtons();
 }
@@ -2503,8 +2576,60 @@ document.querySelectorAll('[data-nav]').forEach(btn=>{
     goto(btn.dataset.nav);
   });
 });
+document.getElementById('titleStudioBtn').addEventListener('click', openStudio);
+// Reachable mid-run too, so you can tweak a draft and test it without
+// abandoning the game you're using to test it.
+document.getElementById('gameStudioBtn').addEventListener('click', openStudio);
 document.getElementById('saveBtn').addEventListener('click', openSaveMenu);
 document.getElementById('codexBackBtn').addEventListener('click', ()=>goto(codexReturnTo));
+
+/* ---------- Module Studio wiring ---------- */
+let studioReturnTo = 'title';
+function openStudio(){
+  const cur = document.querySelector('.screen.active');
+  if(cur && cur.id!=='screen-studio') studioReturnTo = cur.id.replace('screen-','');
+  goto('studio');
+}
+document.getElementById('studioBackBtn').addEventListener('click', ()=>goto(studioReturnTo));
+['stName','stVersion','stAuthor'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{
+    const map = { stName:'name', stVersion:'version', stAuthor:'author' };
+    STUDIO[map[id]] = document.getElementById(id).value;
+    saveStudioDraft(); renderStudioFeedback();
+  });
+});
+document.querySelectorAll('[data-studio]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{ STUDIO_TAB = btn.dataset.studio; STUDIO_EDIT = null; renderStudio(); });
+});
+document.getElementById('stTest').addEventListener('click', ()=>studioInstall());
+document.getElementById('stDownload').addEventListener('click', studioDownload);
+document.getElementById('stCopy').addEventListener('click', async ()=>{
+  const text = JSON.stringify(studioPack(), null, 2);
+  try{
+    await navigator.clipboard.writeText(text);
+    renderStudioFeedback('✅ JSON copied to the clipboard.', true);
+  }catch(err){
+    // Clipboard is blocked in some webviews; fall back to a selectable box.
+    const box = document.getElementById('modalBody');
+    box.innerHTML = `<h2>Module JSON</h2><div class="modal-sub">Copy this by hand.</div>
+      <textarea readonly style="width:100%;min-height:260px;background:var(--bg);border:1px solid var(--line);
+        color:var(--ink);border-radius:3px;padding:.5rem;font-family:'IBM Plex Mono',monospace;font-size:.7rem;">${text.replace(/</g,'&lt;')}</textarea>
+      <div class="modal-actions"><button class="btn primary" id="jsonClose">Close</button></div>`;
+    document.getElementById('jsonClose').onclick = closeModal;
+    openModal();
+  }
+});
+document.getElementById('stImport').addEventListener('click', ()=>document.getElementById('stFile').click());
+document.getElementById('stFile').addEventListener('change', (ev)=>{
+  const f = ev.target.files && ev.target.files[0];
+  if(f) studioImport(f);
+  ev.target.value = '';
+});
+document.getElementById('stClear').addEventListener('click', ()=>{
+  if(!confirm('Clear the whole draft? This cannot be undone.')) return;
+  STUDIO = blankStudio(); STUDIO_EDIT = null; saveStudioDraft(); renderStudio();
+  renderStudioFeedback('Draft cleared.', true);
+});
 document.getElementById('resumeBtn').addEventListener('click', ()=>goto('game'));
 /* The title screen is active from markup on first paint, so goto('title')
    never runs at boot — this has to be called explicitly too. */
@@ -2945,8 +3070,26 @@ function hostRoom(){
 
   NET.peer = new Peer(roomPeerId(NET.roomCode, NET.generation));
   NET.peer.on('open', ()=> netStatus('Room open. Share the code — waiting for players.'));
-  NET.peer.on('error', (err)=> netStatus('Network error: ' + (err && err.type ? err.type : err)));
-  NET.peer.on('connection', (conn)=>{
+  NET.peer.on('error', (err)=>{
+    const type = err && err.type;
+    if(type==='unavailable-id' && !NET.rebadged){
+      // The broker still holds our old id (common after a quick reload).
+      // Take a fresh code rather than leaving a dead room on screen.
+      NET.rebadged = true;
+      NET.roomCode = netRandomCode();
+      document.getElementById('roomCode').textContent = NET.roomCode;
+      netStatus('That code was still in use — new code issued. Share this one.');
+      try{ NET.peer.destroy(); }catch(e){}
+      NET.peer = new Peer(roomPeerId(NET.roomCode, NET.generation));
+      NET.peer.on('open', ()=> netStatus('Room open. Share the code — waiting for players.'));
+      NET.peer.on('connection', attachHostConn);
+      NET.peer.on('error', (e2)=> netStatus('Network error: ' + (e2 && e2.type ? e2.type : e2)));
+      return;
+    }
+    netStatus('Network error: ' + (type || err));
+  });
+  NET.peer.on('connection', attachHostConn);
+  function attachHostConn(conn){
     conn.on('open', ()=>{
       NET.conns.push(conn);
       netStatus(`${NET.conns.length} player(s) connected.`);
@@ -2968,7 +3111,7 @@ function hostRoom(){
       renderRoster(); pushLobby(); netStatus('A player disconnected.');
       syncNow();
     });
-  });
+  }
 }
 function handleHostMessage(conn, msg){
   if(!msg || !msg.t) return;
@@ -2986,7 +3129,39 @@ function handleHostMessage(conn, msg){
       return;
     }
     if(NET.roster.length>=4){ conn.send({ t:'full' }); return; }
-    if(STATE && !STATE.over){ conn.send({ t:'inprogress' }); return; }
+
+    // Drop-in join. A run already under way used to be refused outright,
+    // which meant a player who missed the start (or whose first attempt
+    // failed) could never get in. Now they're added to the party as a new
+    // character and dropped at the entrance of whichever floor most of the
+    // party is on.
+    if(STATE && !STATE.over){
+      const cls = CLASS_DEFS[msg.cls] ? msg.cls : 'archer';
+      const seat = STATE.players.length;
+      NET.roster.push({ peerId:conn.peer, name:wanted, cls, seat, connected:true });
+
+      const counts = {};
+      STATE.players.filter(pl=>pl.alive).forEach(pl=>{ counts[pl.level]=(counts[pl.level]||0)+1; });
+      const busiest = Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+      const spawnLevel = busiest ? Number(busiest) : STATE.level;
+      ensureFloor(spawnLevel, STATE.mapType);
+
+      const fresh = {
+        id: seat, name: wanted, cls,
+        hp: CLASS_DEFS[cls].maxHp, def: CLASS_DEFS[cls].def,
+        x:0, y:0, level: spawnLevel,
+        items:[], trophies:[], statusEffects:{}, buffs:[],
+        alive:true, downed:false, ap:0,
+      };
+      fresh.ap = getStat(fresh,'apMax');
+      STATE.players.push(fresh);
+
+      conn.send({ t:'welcome', seat, roomCode:NET.roomCode, midRun:true });
+      log(`${wanted} joins the expedition on Level ${spawnLevel}.`, 'system');
+      renderRoster(); pushLobby(); renderAll(); syncNow();
+      return;
+    }
+
     const seat = NET.roster.length;
     NET.roster.push({ peerId:conn.peer, name:wanted, cls:msg.cls||'archer', seat, connected:true });
     conn.send({ t:'welcome', seat, roomCode:NET.roomCode });
@@ -3018,42 +3193,51 @@ function hostStartGame(){
    a later generation. A joiner has no way to know which, so probe outwards
    from generation 0 and take the first id that answers. This is what makes
    rejoining work after any number of handovers. */
-const MAX_GENERATION_PROBE = 6;
-function connectToRoom(code, gen, onOpen, onExhausted){
+const MAX_GENERATION_PROBE = 4;
+const PROBE_TIMEOUT_MS = 9000;   // mobile WebRTC handshakes can be slow
+const PROBE_RETRIES = 2;         // a silent miss is retried before moving on
+function connectToRoom(code, gen, onOpen, onExhausted, attempt){
+  attempt = attempt || 1;
   if(gen > MAX_GENERATION_PROBE){ onExhausted(); return; }
   const targetId = roomPeerId(code, gen);
-  netStatus(gen===0 ? 'Connecting…' : `Connecting… (looking for host ${gen})`);
+  netStatus(gen===0
+    ? (attempt>1 ? `Connecting… (retry ${attempt})` : 'Connecting…')
+    : `Connecting… (checking for a newer host)`);
 
   let settled = false;
-  const conn = NET.peer.connect(targetId, { reliable:true });
+  const finish = ()=>{ settled = true; NET.probing = false;
+    if(NET.peer && NET.peer.off) NET.peer.off('error', onPeerError); };
 
-  // PeerJS reports a missing target on the Peer, not the connection.
+  // A missing target is reported on the Peer, not the connection. While
+  // probing we swallow it — it's an expected outcome, not a failure to show
+  // the player.
   const onPeerError = (err)=>{
     if(settled) return;
     if(err && err.type==='peer-unavailable'){
-      settled = true;
-      NET.peer.off && NET.peer.off('error', onPeerError);
-      connectToRoom(code, gen+1, onOpen, onExhausted);
+      finish();
+      connectToRoom(code, gen+1, onOpen, onExhausted, 1);
     }
   };
+  NET.probing = true;
   NET.peer.on('error', onPeerError);
 
+  const conn = NET.peer.connect(targetId, { reliable:true });
   conn.on('open', ()=>{
     if(settled) return;
-    settled = true;
-    NET.peer.off && NET.peer.off('error', onPeerError);
+    finish();
     NET.generation = gen;
     onOpen(conn);
   });
 
-  // Some failures surface as silence rather than an error event.
+  // Silence isn't proof of absence: retry the same id before giving up on
+  // it, otherwise a slow phone gets skipped past a room that does exist.
   setTimeout(()=>{
     if(settled) return;
-    settled = true;
-    NET.peer.off && NET.peer.off('error', onPeerError);
+    finish();
     try{ conn.close(); }catch(err){}
-    connectToRoom(code, gen+1, onOpen, onExhausted);
-  }, 3500);
+    if(attempt < PROBE_RETRIES) connectToRoom(code, gen, onOpen, onExhausted, attempt+1);
+    else connectToRoom(code, gen+1, onOpen, onExhausted, 1);
+  }, PROBE_TIMEOUT_MS);
 }
 
 function joinRoom(code, name){
@@ -3072,7 +3256,12 @@ function joinRoom(code, name){
   netStatus('Connecting…');
 
   NET.peer = new Peer();
-  NET.peer.on('error', (err)=> netStatus('Network error: ' + (err && err.type ? err.type : err)));
+  NET.peer.on('error', (err)=>{
+    // "peer-unavailable" is normal while probing generations; discovery
+    // handles it and reports a proper message if every id is exhausted.
+    if(err && err.type==='peer-unavailable' && NET.probing) return;
+    netStatus('Network error: ' + (err && err.type ? err.type : err));
+  });
   NET.peer.on('open', ()=>{
     connectToRoom(NET.roomCode, 0, (conn)=>{
       NET.hostConn = conn;
@@ -3095,7 +3284,9 @@ function handleClientMessage(msg){
   if(!msg || !msg.t) return;
   if(msg.t==='welcome'){
     NET.mySeat = msg.seat;
-    netStatus(msg.rejoined ? `Rejoined seat ${msg.seat+1}.` : `Joined as seat ${msg.seat+1}.`);
+    netStatus(msg.rejoined ? `Rejoined seat ${msg.seat+1}.`
+            : msg.midRun ? `Joined a run in progress as seat ${msg.seat+1}.`
+            : `Joined as seat ${msg.seat+1}.`);
     return;
   }
   if(msg.t==='full'){ netStatus('That room is full.'); return; }
@@ -3245,6 +3436,460 @@ function netLeave(){
   document.getElementById('netRetryBtn').style.display='none';
   netStatus('');
   goto('title');
+}
+
+/* ======================================================================
+   MODULE STUDIO
+   ----------------------------------------------------------------------
+   Form-driven authoring so players don't have to hand-write JSON. The
+   effect schema below is the single source of truth: it builds the editor
+   UI, validates input, and produces exactly the same JSON shape the module
+   loader already consumes. Adding a new effect kind to the engine means
+   adding one entry here and it becomes authorable for free.
+   ====================================================================== */
+const FIELD_DEFS = {
+  amount:     { label:'Amount (dice or number)', type:'text',   def:'1d6', hint:'e.g. 2d6+2' },
+  amount_num: { label:'Amount', type:'number', def:2 },
+  target:     { label:'Target', type:'select', options:['enemy','self'], def:'enemy' },
+  free:       { label:'Free action (enemy gets no counter-attack)', type:'checkbox', def:false },
+  stat:       { label:'Stat', type:'select',
+                options:['atkMod','def','maxHp','apMax','dmgMult'], def:'atkMod',
+                optionLabels:{atkMod:'Strength (to-hit)', def:'Defence', maxHp:'Max HP',
+                              apMax:'Actions per round', dmgMult:'Damage multiplier'} },
+  duration:   { label:'Duration in rounds (blank = permanent)', type:'number', def:2 },
+  mode:       { label:'Modifier', type:'select', options:['advantage'], def:'advantage' },
+  status:     { label:'Status', type:'select', options:['bleed','stun','freeze','poison'], def:'bleed' },
+  status_cure:{ label:'Cures', type:'select', options:['all','poison','bleed','stun','freeze'], def:'all' },
+  count:      { label:'Tiles to reveal', type:'number', def:3 },
+  mode_tp:    { label:'Destination', type:'select', options:['start','random'], def:'start',
+                optionLabels:{start:'Level entrance', random:'Random explored tile'} },
+  chance:     { label:'Chance 0–1 (blank = always)', type:'text', def:'' },
+};
+const EFFECT_SCHEMA = {
+  heal:     { label:'Heal',              fields:['amount'] },
+  damage:   { label:'Deal damage',       fields:['amount','target','free'] },
+  buff:     { label:'Buff / debuff stat',fields:['stat','amount_num','duration'] },
+  ap:       { label:'Grant actions',     fields:['amount_num'] },
+  roll:     { label:'Roll modifier',     fields:['mode','duration'] },
+  status:   { label:'Inflict status',    fields:['status','target','duration'] },
+  cure:     { label:'Cure ailments',     fields:['status_cure'] },
+  deckPeek: { label:'Peek at tiles',     fields:['count'] },
+  teleport: { label:'Teleport',          fields:['mode_tp'] },
+};
+// Which JSON key each form field writes to.
+const FIELD_KEY = { amount:'amount', amount_num:'amount', target:'target', free:'free',
+  stat:'stat', duration:'duration', mode:'mode', status:'status', status_cure:'status',
+  count:'count', mode_tp:'mode', chance:'chance' };
+
+const STUDIO_KEY = 'depths-and-spires:studio:v1';
+let STUDIO = null;
+let STUDIO_TAB = 'items';
+let STUDIO_EDIT = null;   // { kind, index } or null
+
+function blankStudio(){
+  return { name:'', version:'1.0.0', author:'', items:[], enemies:[], traps:[] };
+}
+function loadStudioDraft(){
+  try{
+    const raw = localStorage.getItem(STUDIO_KEY);
+    if(raw) return Object.assign(blankStudio(), JSON.parse(raw));
+  }catch(err){}
+  return blankStudio();
+}
+function saveStudioDraft(){
+  try{ localStorage.setItem(STUDIO_KEY, JSON.stringify(STUDIO)); }catch(err){}
+}
+function slugify(text, fallback){
+  const base = String(text||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  return base || fallback;
+}
+function studioPack(){
+  const pack = {
+    name: STUDIO.name || 'Untitled Pack',
+    version: STUDIO.version || '1.0.0',
+    author: STUDIO.author || 'unknown',
+  };
+  if(STUDIO.items.length)   pack.items   = STUDIO.items;
+  if(STUDIO.enemies.length) pack.enemies = STUDIO.enemies;
+  if(STUDIO.traps.length)   pack.traps   = STUDIO.traps;
+  return pack;
+}
+
+/* ---------- blank entries ---------- */
+function newEntry(kind){
+  if(kind==='items') return { id:'', name:'', type:'consumable', icon:'✨', cls:null,
+    uses:1, rarity:1, usableIn:['combat','explore'], desc:'', effects:[], onHit:[] };
+  if(kind==='enemies') return { id:'', name:'', hp:10, def:11, dmg:'1d6', icon:'👾',
+    flavor:'', special:'', boss:false };
+  return { id:'', name:'', dmg:'1d6', dc:12, icon:'⚙️', flavor:'' };
+}
+
+/* ---------- validation ---------- */
+function studioIssues(){
+  const issues = [];
+  const seen = new Set();
+  ['items','enemies','traps'].forEach(kind=>{
+    STUDIO[kind].forEach((e,i)=>{
+      const who = e.name || (kind.slice(0,-1)+' '+(i+1));
+      if(!e.name) issues.push(`${kind}[${i}] needs a name`);
+      const id = e.id || slugify(e.name, '');
+      if(!id) issues.push(`${who} needs an id`);
+      else if(seen.has(id)) issues.push(`duplicate id "${id}" (${who})`);
+      else seen.add(id);
+      if(kind==='items'){
+        const all = (e.effects||[]).concat(e.onHit||[]);
+        all.forEach(fx=>{
+          if(fx.amount && typeof fx.amount==='string' && !/^\d+(d\d+)?([+-]\d+)?$/.test(fx.amount.trim()))
+            issues.push(`${who}: "${fx.amount}" isn't a number or dice expression`);
+        });
+        if(!all.length) issues.push(`${who} has no effects — it will do nothing`);
+      }
+      if(kind==='enemies' && !/^\d+(d\d+)?([+-]\d+)?$/.test(String(e.dmg||'').trim()))
+        issues.push(`${who}: damage must be dice like 1d8`);
+      if(kind==='traps' && !/^\d+(d\d+)?([+-]\d+)?$/.test(String(e.dmg||'').trim()))
+        issues.push(`${who}: damage must be dice like 1d6`);
+    });
+  });
+  return issues;
+}
+
+/* ---------- rendering ---------- */
+function renderStudio(){
+  if(!STUDIO) STUDIO = loadStudioDraft();
+  const meta = { stName:'name', stVersion:'version', stAuthor:'author' };
+  Object.entries(meta).forEach(([id,k])=>{
+    const el2 = document.getElementById(id);
+    if(el2 && el2.value !== STUDIO[k]) el2.value = STUDIO[k] || '';
+  });
+  document.querySelectorAll('[data-studio]').forEach(btn=>
+    btn.classList.toggle('active', btn.dataset.studio===STUDIO_TAB));
+  if(STUDIO_EDIT) renderStudioEditor(); else renderStudioList();
+  renderStudioFeedback();
+}
+function renderStudioFeedback(msg, good){
+  const box = document.getElementById('stFeedback');
+  if(!box) return;
+  if(msg){ box.innerHTML = `<span style="color:${good?'var(--verdigris)':'var(--blood-bright)'}">${msg}</span>`; return; }
+  const issues = studioIssues();
+  const counts = `${STUDIO.items.length} item(s) · ${STUDIO.enemies.length} enemy(ies) · ${STUDIO.traps.length} trap(s)`;
+  box.innerHTML = issues.length
+    ? `<span style="color:var(--ember-bright)">⚠️ ${issues.length} thing(s) to fix: ${issues.slice(0,3).join('; ')}${issues.length>3?'…':''}</span>`
+    : `<span style="color:var(--ink-faint)">${counts} — ready to export.</span>`;
+}
+function renderStudioList(){
+  document.getElementById('studioEditor').innerHTML = '';
+  const box = document.getElementById('studioList');
+  const list = STUDIO[STUDIO_TAB];
+  const label = STUDIO_TAB.slice(0,-1);
+  box.innerHTML = `
+    <div class="subhead">${STUDIO_TAB} in this module</div>
+    ${list.length ? list.map((e,i)=>`
+      <div class="entry-row">
+        <span class="er-icon">${e.icon||'📦'}</span>
+        <div class="er-body">
+          <div class="er-name">${e.name||'<i>unnamed</i>'}</div>
+          <div class="er-meta">${e.id||slugify(e.name,'no-id')}${
+            STUDIO_TAB==='items' ? ' · '+((e.effects||[]).length+(e.onHit||[]).length)+' effect(s)'
+            : STUDIO_TAB==='enemies' ? ' · '+e.hp+' HP · '+e.dmg
+            : ' · DC '+e.dc+' · '+e.dmg}</div>
+        </div>
+        <button class="btn small ghost" data-edit="${i}">Edit</button>
+        <button class="btn small ghost" data-dup="${i}">Copy</button>
+        <button class="btn small danger" data-del="${i}">✕</button>
+      </div>`).join('') : `<div class="empty-note">No ${STUDIO_TAB} yet.</div>`}
+    <button class="btn small primary" id="stAdd" style="margin-top:.6rem;">＋ New ${label}</button>
+  `;
+  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{ STUDIO_EDIT={kind:STUDIO_TAB,index:+b.dataset.edit}; renderStudio(); });
+  box.querySelectorAll('[data-dup]').forEach(b=>b.onclick=()=>{
+    const copy = JSON.parse(JSON.stringify(list[+b.dataset.dup]));
+    copy.name += ' copy'; copy.id = '';
+    list.push(copy); saveStudioDraft(); renderStudio();
+  });
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    list.splice(+b.dataset.del,1); saveStudioDraft(); renderStudio();
+  });
+  document.getElementById('stAdd').onclick = ()=>{
+    list.push(newEntry(STUDIO_TAB));
+    STUDIO_EDIT = { kind:STUDIO_TAB, index:list.length-1 };
+    saveStudioDraft(); renderStudio();
+  };
+}
+
+function fieldHtml(id, fd, value){
+  const v = value===undefined ? fd.def : value;
+  if(fd.type==='checkbox')
+    return `<label><input type="checkbox" id="${id}" ${v?'checked':''}> ${fd.label}</label>`;
+  if(fd.type==='select')
+    return `<label>${fd.label}<select id="${id}">${fd.options.map(o=>
+      `<option value="${o}" ${String(v)===o?'selected':''}>${(fd.optionLabels&&fd.optionLabels[o])||o}</option>`).join('')}</select></label>`;
+  return `<label>${fd.label}<input type="${fd.type}" id="${id}" value="${v===undefined||v===null?'':String(v).replace(/"/g,'&quot;')}"></label>`;
+}
+
+function renderStudioEditor(){
+  document.getElementById('studioList').innerHTML = '';
+  const { kind, index } = STUDIO_EDIT;
+  const e = STUDIO[kind][index];
+  const box = document.getElementById('studioEditor');
+
+  let body = `
+    <div class="subhead">editing ${kind.slice(0,-1)}</div>
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="field-row">
+        <label>Name<input type="text" id="fName" value="${(e.name||'').replace(/"/g,'&quot;')}"></label>
+        <label style="max-width:90px;">Icon<input type="text" id="fIcon" value="${e.icon||''}"></label>
+      </div>
+      <label>Id (blank = from name)<input type="text" id="fId" value="${e.id||''}" placeholder="${slugify(e.name,'auto')}"></label>`;
+
+  if(kind==='items'){
+    body += `
+      <div class="field-row">
+        <label>Type<select id="fType">${['consumable','weapon','artifact','trinket'].map(t=>
+          `<option ${e.type===t?'selected':''}>${t}</option>`).join('')}</select></label>
+        <label>Class<select id="fCls">
+          <option value="">any class</option>
+          ${Object.entries(CLASS_DEFS).map(([c,d])=>`<option value="${c}" ${e.cls===c?'selected':''}>${d.name}</option>`).join('')}
+        </select></label>
+      </div>
+      <div class="field-row">
+        <label>Uses (-1 = equipped)<input type="number" id="fUses" value="${e.uses===Infinity?-1:e.uses}"></label>
+        <label>Rarity (higher = commoner)<input type="number" id="fRarity" value="${e.rarity||1}"></label>
+      </div>
+      <label>Usable
+        <span style="display:block;margin-top:.3rem;text-transform:none;letter-spacing:normal;font-family:'Spectral',serif;font-size:.9rem;color:var(--ink);">
+          <input type="checkbox" id="fInCombat" ${(e.usableIn||[]).includes('combat')?'checked':''}> in battle
+          <input type="checkbox" id="fInExplore" ${(e.usableIn||[]).includes('explore')?'checked':''} style="margin-left:.8em;"> while exploring
+        </span></label>
+      <label>Description<textarea id="fDesc">${e.desc||''}</textarea></label>
+    </div>
+    ${effectListHtml('effects', e.effects||[], 'When used')}
+    ${effectListHtml('onHit', e.onHit||[], 'When the holder lands a hit')}
+    <div class="subhead">preview</div>
+    <div id="stPreview"></div>`;
+  } else if(kind==='enemies'){
+    body += `
+      <div class="field-row">
+        <label>HP<input type="number" id="fHp" value="${e.hp}"></label>
+        <label>Defence<input type="number" id="fDef" value="${e.def}"></label>
+        <label>Damage<input type="text" id="fDmg" value="${e.dmg}"></label>
+      </div>
+      <label>Flavour<textarea id="fFlavor">${e.flavor||''}</textarea></label>
+      <div class="field-row">
+        <label>Special<select id="fSpecial">
+          <option value="">none</option><option value="poison" ${e.special==='poison'?'selected':''}>poison on hit</option>
+        </select></label>
+        <label><input type="checkbox" id="fBoss" ${e.boss?'checked':''}> Boss (ends the run when slain)</label>
+      </div>
+    </div>
+    <div class="subhead">preview</div><div id="stPreview"></div>`;
+  } else {
+    body += `
+      <div class="field-row">
+        <label>Damage<input type="text" id="fDmg" value="${e.dmg}"></label>
+        <label>Difficulty (DC)<input type="number" id="fDc" value="${e.dc}"></label>
+      </div>
+      <label>Flavour<textarea id="fFlavor">${e.flavor||''}</textarea></label>
+    </div>
+    <div class="subhead">preview</div><div id="stPreview"></div>`;
+  }
+
+  body += `<div class="studio-bar">
+      <button class="btn small primary" id="fDone">Done</button>
+      ${kind==='items' && STATE && !STATE.over ? '<button class="btn small ghost" id="fGive">Give to active character</button>' : ''}
+      ${kind==='enemies' && STATE && !STATE.over ? '<button class="btn small ghost" id="fFight">Fight it now</button>' : ''}
+    </div>`;
+  box.innerHTML = body;
+
+  const commit = ()=>{ readEditorInto(e, kind); saveStudioDraft(); renderStudioPreview(e, kind); renderStudioFeedback(); };
+  box.querySelectorAll('input,select,textarea').forEach(inp=>{
+    inp.addEventListener('input', commit);
+    inp.addEventListener('change', commit);
+  });
+  wireEffectButtons(e, kind);
+  document.getElementById('fDone').onclick = ()=>{ commit(); STUDIO_EDIT=null; renderStudio(); };
+  const give = document.getElementById('fGive');
+  if(give) give.onclick = ()=>{ commit(); studioGiveItem(e); };
+  const fight = document.getElementById('fFight');
+  if(fight) fight.onclick = ()=>{ commit(); studioFightEnemy(e); };
+  renderStudioPreview(e, kind);
+}
+
+function effectListHtml(listName, list, title){
+  return `<div class="subhead">${title}</div>
+    <div id="fx_${listName}">
+      ${list.map((fx,i)=>{
+        const schema = EFFECT_SCHEMA[fx.kind] || { label:fx.kind, fields:[] };
+        return `<div class="effect-card">
+          <div class="ec-head">
+            <select data-fxkind="${listName}:${i}">
+              ${Object.entries(EFFECT_SCHEMA).map(([k,v])=>
+                `<option value="${k}" ${fx.kind===k?'selected':''}>${v.label}</option>`).join('')}
+            </select>
+            <button class="btn small danger" data-fxdel="${listName}:${i}">✕</button>
+          </div>
+          <div class="field-row">
+            ${schema.fields.map(f=>fieldHtml(`fx_${listName}_${i}_${f}`, FIELD_DEFS[f], fx[FIELD_KEY[f]])).join('')}
+            ${fieldHtml(`fx_${listName}_${i}_chance`, FIELD_DEFS.chance, fx.chance)}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="btn small ghost" data-fxadd="${listName}">＋ Add effect</button>`;
+}
+function wireEffectButtons(entry, kind){
+  const box = document.getElementById('studioEditor');
+  box.querySelectorAll('[data-fxadd]').forEach(b=>b.onclick=()=>{
+    const which = b.dataset.fxadd;
+    entry[which] = entry[which] || [];
+    entry[which].push({ kind:'heal', amount:'1d6' });
+    saveStudioDraft(); renderStudioEditor();
+  });
+  box.querySelectorAll('[data-fxdel]').forEach(b=>b.onclick=()=>{
+    const [which,i] = b.dataset.fxdel.split(':');
+    entry[which].splice(+i,1); saveStudioDraft(); renderStudioEditor();
+  });
+  box.querySelectorAll('[data-fxkind]').forEach(sel=>sel.onchange=()=>{
+    const [which,i] = sel.dataset.fxkind.split(':');
+    entry[which][+i] = { kind: sel.value };   // reset fields for the new kind
+    saveStudioDraft(); renderStudioEditor();
+  });
+}
+
+function val(id){ const e=document.getElementById(id); return e ? e.value : undefined; }
+function checked(id){ const e=document.getElementById(id); return e ? e.checked : false; }
+
+function readEditorInto(e, kind){
+  e.name = val('fName') || '';
+  e.icon = val('fIcon') || '';
+  e.id = (val('fId') || '').trim() || slugify(e.name, '');
+  if(kind==='items'){
+    e.type = val('fType');
+    e.cls = val('fCls') || null;
+    e.uses = parseInt(val('fUses'),10); if(isNaN(e.uses)) e.uses = 1;
+    e.rarity = parseInt(val('fRarity'),10) || 1;
+    e.usableIn = [];
+    if(checked('fInCombat')) e.usableIn.push('combat');
+    if(checked('fInExplore')) e.usableIn.push('explore');
+    e.desc = val('fDesc') || '';
+    ['effects','onHit'].forEach(which=>{
+      (e[which]||[]).forEach((fx,i)=>{
+        const schema = EFFECT_SCHEMA[fx.kind] || { fields:[] };
+        const next = { kind: fx.kind };
+        schema.fields.forEach(f=>{
+          const fd = FIELD_DEFS[f];
+          const raw = fd.type==='checkbox' ? checked(`fx_${which}_${i}_${f}`) : val(`fx_${which}_${i}_${f}`);
+          if(raw===undefined || raw==='') return;
+          if(fd.type==='number') next[FIELD_KEY[f]] = Number(raw);
+          else if(fd.type==='checkbox'){ if(raw) next[FIELD_KEY[f]] = true; }
+          else next[FIELD_KEY[f]] = raw;
+        });
+        const ch = val(`fx_${which}_${i}_chance`);
+        if(ch!==undefined && ch!=='') next.chance = Number(ch);
+        e[which][i] = next;
+      });
+    });
+  } else if(kind==='enemies'){
+    e.hp = Number(val('fHp'))||1; e.def = Number(val('fDef'))||10;
+    e.dmg = val('fDmg')||'1d6'; e.flavor = val('fFlavor')||'';
+    const sp = val('fSpecial'); if(sp) e.special = sp; else delete e.special;
+    e.boss = checked('fBoss');
+  } else {
+    e.dmg = val('fDmg')||'1d6'; e.dc = Number(val('fDc'))||12;
+    e.flavor = val('fFlavor')||'';
+  }
+}
+
+function renderStudioPreview(e, kind){
+  const box = document.getElementById('stPreview');
+  if(!box) return;
+  const norm = Object.assign({}, e, { uses: normalizeUses(e.uses) });
+  if(kind==='items'){
+    const where = itemUsableIn(norm,'combat') && itemUsableIn(norm,'explore') ? 'anytime'
+                : itemUsableIn(norm,'combat') ? 'in battle'
+                : itemUsableIn(norm,'explore') ? 'exploring' : 'passive';
+    box.innerHTML = `<div class="card item-weapon">
+      <div class="cardtype">${e.type}${e.cls?' · '+CLASS_DEFS[e.cls].name:''}</div>
+      <div class="cardicon">${e.icon||'📦'}</div>
+      <div class="cardname">${e.name||'Unnamed'}</div>
+      <div class="carddesc">${e.desc||''}</div>
+      ${describeEffects(norm)}
+      <div class="card-footer"><span class="uses-badge">${where}</span>
+        <span class="uses-badge">${norm.uses===Infinity?'equip':norm.uses+' use(s)'}</span></div>
+    </div>`;
+  } else if(kind==='enemies'){
+    box.innerHTML = `<div class="card enemy${e.boss?' boss':''}">
+      <div class="cardtype">${e.boss?'boss':'enemy'}</div>
+      <div class="cardicon">${e.icon||'👾'}</div>
+      <div class="cardname">${e.name||'Unnamed'}</div>
+      <div class="cardstats"><span>HP ${e.hp}</span><span>DEF ${e.def}</span><span>DMG ${e.dmg}</span></div>
+      <div class="carddesc">${e.flavor||''}${e.special?'<br><i>Special: '+e.special+'</i>':''}</div></div>`;
+  } else {
+    box.innerHTML = `<div class="card trap">
+      <div class="cardtype">trap</div>
+      <div class="cardicon">${e.icon||'⚙️'}</div>
+      <div class="cardname">${e.name||'Unnamed'}</div>
+      <div class="cardstats"><span>DMG ${e.dmg}</span><span>DC ${e.dc}</span></div>
+      <div class="carddesc">${e.flavor||''}</div></div>`;
+  }
+}
+
+/* ---------- live testing ---------- */
+function studioInstall(quiet){
+  const issues = studioIssues();
+  if(issues.length){ renderStudioFeedback('⚠️ Fix these first: '+issues.slice(0,3).join('; '), false); return false; }
+  STUDIO.items.forEach(i=>{ if(!i.id) i.id = slugify(i.name,'item'); });
+  const res = installModule(JSON.parse(JSON.stringify(studioPack())), 'Module Studio draft');
+  if(!res.ok){ renderStudioFeedback('❌ '+res.errors.join('; '), false); return false; }
+  if(!quiet) renderStudioFeedback('✅ Loaded into this session — it can now appear as loot and in the Codex.', true);
+  return true;
+}
+function studioGiveItem(e){
+  if(!STATE || STATE.over){ renderStudioFeedback('Start a game first to test items.', false); return; }
+  if(NET.enabled && NET.role!=='host'){ renderStudioFeedback('Only the host can inject test content.', false); return; }
+  if(!studioInstall(true)) return;
+  const p = activePlayer();
+  p.items.push({ id:e.id || slugify(e.name,'item'), usesLeft: normalizeUses(e.uses) });
+  log(`[studio] ${p.name} is handed ${e.name} for testing.`, 'loot');
+  renderAll();
+  renderStudioFeedback(`✅ Gave "${e.name}" to ${p.name}. Open the game to try it.`, true);
+}
+function studioFightEnemy(e){
+  if(!STATE || STATE.over){ renderStudioFeedback('Start a game first to test enemies.', false); return; }
+  if(NET.enabled && NET.role!=='host'){ renderStudioFeedback('Only the host can inject test content.', false); return; }
+  if(!studioInstall(true)) return;
+  const p = activePlayer();
+  const tile = STATE.grid.get(key(p.x,p.y));
+  if(!tile){ renderStudioFeedback('No tile underfoot to stage a fight on.', false); return; }
+  tile.event = { kind:'enemy', enemyId: e.id || slugify(e.name,'enemy') };
+  goto('game');
+  openCombatModal(tile);
+}
+
+/* ---------- import / export ---------- */
+function studioDownload(){
+  const data = JSON.stringify(studioPack(), null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = slugify(STUDIO.name,'module') + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  renderStudioFeedback('✅ Downloaded. Drop it in your mods/ folder and add it to mods/manifest.json.', true);
+}
+function studioImport(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const pack = JSON.parse(String(reader.result));
+      STUDIO = Object.assign(blankStudio(), {
+        name:pack.name||'', version:pack.version||'1.0.0', author:pack.author||'',
+        items:(pack.items||[]).map(i=>Object.assign(i,{uses: i.uses===undefined?-1:i.uses})),
+        enemies:pack.enemies||[], traps:pack.traps||[],
+      });
+      STUDIO_EDIT = null; saveStudioDraft(); renderStudio();
+      renderStudioFeedback('✅ Imported — edit and re-export as you like.', true);
+    }catch(err){ renderStudioFeedback('❌ Not valid module JSON: '+err.message, false); }
+  };
+  reader.readAsText(file);
 }
 
 /* ======================================================================
