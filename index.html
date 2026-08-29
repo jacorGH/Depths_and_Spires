@@ -158,6 +158,20 @@ button{font-family:inherit;}
   box-shadow:0 calc(var(--cs) * 0.05) 0 -2px rgba(0,0,0,.55), 0 calc(var(--cs) * 0.14) calc(var(--cs) * 0.2) -6px rgba(0,0,0,.7);}
 .cell img{width:100%; height:100%; display:block; image-rendering:auto; -webkit-user-drag:none;}
 .cell .avatar-layer{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:2px; flex-wrap:wrap; pointer-events:none;}
+#fxLayer{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;}
+.fx-flash{position:absolute;inset:0;opacity:0;animation:fxFlash .42s ease-out forwards;}
+@keyframes fxFlash{0%{opacity:0}18%{opacity:.55}100%{opacity:0}}
+.fx-float{position:absolute;font-family:'Cinzel',serif;font-weight:700;font-size:1.5rem;
+  text-shadow:0 2px 6px #000,0 0 12px rgba(0,0,0,.8);animation:fxFloat 1.05s ease-out forwards;white-space:nowrap;}
+@keyframes fxFloat{0%{transform:translate(-50%,0) scale(.7);opacity:0}
+  22%{transform:translate(-50%,-14px) scale(1.12);opacity:1}
+  100%{transform:translate(-50%,-64px) scale(1);opacity:0}}
+.shakes{animation:fxShake .34s cubic-bezier(.36,.07,.19,.97) both;}
+@keyframes fxShake{10%,90%{transform:translate(-2px,0)}20%,80%{transform:translate(4px,0)}
+  30%,50%,70%{transform:translate(-7px,0)}40%,60%{transform:translate(7px,0)}}
+.shakes-hard{animation:fxShakeHard .5s cubic-bezier(.36,.07,.19,.97) both;}
+@keyframes fxShakeHard{10%,90%{transform:translate(-4px,-2px)}20%,80%{transform:translate(7px,2px)}
+  30%,50%,70%{transform:translate(-12px,3px)}40%,60%{transform:translate(12px,-3px)}}
 .enemy-token{position:absolute;top:6%;left:50%;transform:translateX(-50%);font-size:1.5em;
   filter:drop-shadow(0 2px 4px #000);pointer-events:none;}
 .enemy-hp{position:absolute;top:2%;left:22%;width:56%;height:5%;background:#2a1416;
@@ -535,8 +549,13 @@ button{font-family:inherit;}
       <div id="netRoom" style="display:none;">
         <div class="card" style="margin-bottom:1rem;">
           <div class="cardtype">room code — share this</div>
-          <div id="roomCode" class="mono"
-               style="font-size:1.8rem;letter-spacing:.25em;color:var(--ember-bright);margin:.3em 0;">…</div>
+          <div id="roomCode" class="mono" role="button" tabindex="0" title="Tap to share"
+               style="font-size:1.8rem;letter-spacing:.25em;color:var(--ember-bright);margin:.3em 0;
+                      cursor:pointer;user-select:none;">…</div>
+          <div class="carddesc" style="margin-bottom:.3rem;">
+            <button class="btn small primary" id="shareCodeBtn">📤 Share invite</button>
+            <button class="btn small ghost" id="copyCodeBtn">Copy code</button>
+          </div>
           <div class="carddesc" id="netStatus">Starting…</div>
         </div>
         <div class="panel-subhead">Party</div>
@@ -568,6 +587,7 @@ button{font-family:inherit;}
     </div>
   </section>
 
+  <div id="fxLayer"></div>
   <div id="modalRoot"><div id="modalBackdrop"></div><div class="modal" id="modalBody"></div></div>
 </div>
 
@@ -1179,7 +1199,8 @@ function validateModule(pack){
   }
   return errs;
 }
-function installModule(pack, sourceLabel){
+function installModule(pack, sourceLabel, opts){
+  opts = opts || {};
   const errs = validateModule(pack);
   if(errs.length){
     MODULE_ERRORS.push({ source: sourceLabel, message: errs.join('; ') });
@@ -1187,11 +1208,28 @@ function installModule(pack, sourceLabel){
   }
   const counts = registerContent(pack, pack.name || sourceLabel);
   if(Array.isArray(pack.sounds) && pack.sounds.length) registerSounds(pack.sounds, pack.name || sourceLabel);
-  LOADED_MODULES.push({
+  const existing = LOADED_MODULES.findIndex(m=>m.name===(pack.name||sourceLabel));
+  const entry = {
     name: pack.name || sourceLabel, version: pack.version || '—',
     author: pack.author || '—', counts, source: sourceLabel,
-  });
+    fromHost: !!opts.fromHost,
+    // The raw pack is kept so it can be handed to joining players and saved
+    // back out as a file by anyone who receives it.
+    pack: pack,
+  };
+  if(existing>-1) LOADED_MODULES[existing] = entry; else LOADED_MODULES.push(entry);
   return { ok:true, counts };
+}
+function packBytes(pack){ try{ return JSON.stringify(pack).length; }catch(err){ return 0; } }
+function downloadPack(pack, label){
+  const data = JSON.stringify(pack, null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (slugify(pack.name || label || 'module','module')) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
 // Fetch mods/manifest.json, then each module it lists. Silently no-ops when
 // running from file:// (no server) — imports still work in that case.
@@ -1363,6 +1401,10 @@ function loadFloor(lvl){
   STATE.level = f.level;
   STATE.mapType = f.mapType;
   STATE.tilesExploredThisLevel = f.tilesExplored || 0;
+  // A new floor has entirely different coordinates, so a camera left where
+  // it was on the old one points at empty space — which read as the screen
+  // going black. Re-follow the character on every floor change.
+  if(typeof VIEW !== 'undefined'){ VIEW.follow = true; VIEW.archive = null; }
   return true;
 }
 function ensureFloor(lvl, mapType, backTo){
@@ -1827,7 +1869,14 @@ function useStairs(){
   if(!hasAP(p)){ log(`${p.name} has no actions left to take the stairs.`, 'system'); renderTurnbar(); return; }
 
   const fromLevel = STATE.level;
-  const target = (tile.toLevel !== undefined && tile.toLevel !== null) ? tile.toLevel : fromLevel + 1;
+  // A stairway remembers the exact tile it comes out at. Without this,
+  // coming back down always dumped you at the level entrance instead of
+  // the stairway you originally left from.
+  const link = tile.linkTo;
+  const target = link ? link.level
+                      : ((tile.toLevel !== undefined && tile.toLevel !== null) ? tile.toLevel : fromLevel + 1);
+  const arrival = link ? { x:link.x, y:link.y } : { x:0, y:0 };
+  const fromX = tile.x, fromY = tile.y;
 
   saveActiveFloor();
   const fresh = ensureFloor(
@@ -1839,16 +1888,35 @@ function useStairs(){
   );
   loadFloor(target);
 
+  if(!link){
+    // First traversal: pair the two stairways so the return trip lands
+    // where it should.
+    const here = STATE.grid.get(key(arrival.x, arrival.y));
+    if(here){
+      here.stairs = true;
+      here.toLevel = fromLevel;
+      here.linkTo = { level: fromLevel, x: fromX, y: fromY };
+    }
+    // Record the outbound link on the tile we left, on its own floor.
+    const originFloor = STATE.floors[fromLevel];
+    if(originFloor){
+      const originTile = originFloor.tiles.find(t=>t.x===fromX && t.y===fromY);
+      if(originTile) originTile.linkTo = { level: target, x: arrival.x, y: arrival.y };
+    }
+  }
+
   // Only the character who used the stairway travels.
   p.level = target;
-  p.x = 0; p.y = 0;
+  p.x = arrival.x; p.y = arrival.y;
+  VIEW.follow = true;
   spendAP(p);
 
   playSfx('stairs');
   const others = playersOnFloor(fromLevel).length;
   log(`${p.name} takes the stairway to Level ${target}${fresh ? ` — a new ${STATE.mapType.toLowerCase()} unfolds` : ''}.`, 'system');
   if(others) log(`${others} of the party remain on Level ${fromLevel}.`, 'system');
-  if(fresh) logEntranceDescription(0,0);
+  if(fresh) logEntranceDescription(arrival.x, arrival.y);
+  else log(`They step out at the stairway they left from.`, 'system');
   renderAll();
 }
 
@@ -1953,6 +2021,19 @@ function openCombatModal(tile){
   openModal();
 }
 
+/* Flavour so repeated attacks don't read identically. Purely cosmetic. */
+const ATTACK_FLAVOR = {
+  warrior:{ hit:['brings the blade down hard','hammers through the guard','shoulders in and swings','cleaves in a flat arc'],
+            miss:['swings wide','is turned aside','overcommits and stumbles','clips only stone'] },
+  archer: { hit:['looses clean through the gap','snaps off a shot','puts an arrow where it counts','fires between the ribs'],
+            miss:['looses wide','clatters an arrow off the wall','rushes the draw','watches it fly past'] },
+  thief:  { hit:['slips inside the guard','opens a seam in the dark','strikes from the blind side','darts in and out'],
+            miss:['is spotted too early','finds no opening','pulls the strike short','melts back empty-handed'] },
+};
+function attackFlavor(cls, hit){
+  const set = ATTACK_FLAVOR[cls] || ATTACK_FLAVOR.warrior;
+  return pick(hit ? set.hit : set.miss);
+}
 function playerAttackRoll(p, mechanicOverride){
   const mechanic = mechanicOverride || CLASS_DEFS[p.cls].mechanic;
   const atkMod = getStat(p,'atkMod');           // includes item/module buffs
@@ -1971,24 +2052,33 @@ function playerAttackRoll(p, mechanicOverride){
 
   if(mechanic==='might'){
     const r1=d20(), r2=d20();
-    const best = Math.max(r1,r2) + atkMod;
-    const hit = best >= def;
-    return { hit, text:`Rolls ${r1} &amp; ${r2}, keeps ${Math.max(r1,r2)} (+${atkMod}) = ${best} vs DEF ${def}${advNote}`, dmgDie, mult:1 };
+    const raw = Math.max(r1,r2);
+    const best = raw + atkMod;
+    const hit = raw===20 ? true : (raw===1 ? false : best >= def);
+    return { hit, nat:raw, crit:raw===20, fumble:raw===1,
+      text:`Rolls ${r1} &amp; ${r2}, keeps ${raw} (+${atkMod}) = ${best} vs DEF ${def}${advNote}`, dmgDie, mult:1 };
   }
   if(mechanic==='twoshots'){
-    const r1 = d20()+atkMod;
-    if(r1>=def) return { hit:true, text:`Ranged shot: ${r1} vs DEF ${def} — clean hit.${advNote}`, dmgDie, mult:1 };
-    const r2 = d20()+ (atkMod+2);
-    const hit2 = r2>=def;
-    return { hit:hit2, text:`Ranged shot missed (${r1}). Closer shot: ${r2} vs DEF ${def}.${advNote}`, dmgDie:'1d4', mult:1 };
+    const raw1 = d20();
+    const r1 = raw1 + atkMod;
+    if(raw1===20 || r1>=def)
+      return { hit:true, nat:raw1, crit:raw1===20,
+        text:`Ranged shot: ${r1} vs DEF ${def} — clean hit.${advNote}`, dmgDie, mult:1 };
+    const raw2 = d20();
+    const r2 = raw2 + (atkMod+2);
+    const hit2 = raw2===20 || r2>=def;
+    return { hit:hit2, nat:raw2, crit:raw2===20, fumble:(raw1===1&&raw2===1),
+      text:`Ranged shot missed (${r1}). Closer shot: ${r2} vs DEF ${def}.${advNote}`, dmgDie:'1d4', mult:1 };
   }
   if(mechanic==='shadow'){
     const stealth = d20()+2;
     const stealthOk = stealth >= COMBAT.enemyDef.def;
-    const atk = d20() + (stealthOk ? atkMod+2 : atkMod);
-    const hit = atk >= def;
+    const raw = d20();
+    const atk = raw + (stealthOk ? atkMod+2 : atkMod);
+    const hit = raw===20 ? true : (raw===1 ? false : atk >= def);
     const mult = stealthOk ? 2 : 1;
-    return { hit, text:`Stealth check ${stealth} ${stealthOk?'(succeeds)':'(fails, noticed)'} — attack ${atk} vs DEF ${def}${stealthOk?' [x2 dmg]':''}${advNote}`, dmgDie, mult };
+    return { hit, nat:raw, crit:raw===20, fumble:raw===1, mult,
+      text:`Stealth ${stealth} ${stealthOk?'(succeeds)':'(fails, noticed)'} — attack ${atk} vs DEF ${def}${stealthOk?' [x2 dmg]':''}${advNote}`, dmgDie };
   }
   return { hit:false, text:'...', dmgDie, mult:1 };
 }
@@ -2013,6 +2103,12 @@ function renderCombatModal(){
       </div>
     </div>
     <div class="roll-result" id="combatRollResult">${COMBAT.lastText || 'Choose an action.'}</div>
+    ${COMBAT.enemyStatus && (COMBAT.enemyStatus.bleed||COMBAT.enemyStatus.stun||COMBAT.enemyStatus.freeze)
+      ? `<div class="status-chips" style="justify-content:center;">
+          ${COMBAT.enemyStatus.bleed?'<span class="chip">🩸 bleeding</span>':''}
+          ${COMBAT.enemyStatus.stun?'<span class="chip">⚡ stunned</span>':''}
+          ${COMBAT.enemyStatus.freeze?'<span class="chip">❄️ frozen</span>':''}
+        </div>` : ''}
     <div class="modal-actions" id="combatActions"></div>
   `;
   const actions = document.getElementById('combatActions');
@@ -2076,6 +2172,7 @@ function enemyRetaliate(){
   if(eroll >= getStat(p,'def')){
     const edmg = rollExpr(enemyDef.dmg);
     p.hp = Math.max(0, p.hp - edmg.total);
+    setTimeout(()=>fxHurt(edmg.total), 380);
     let t = ` ${enemyDef.name} strikes back for ${edmg.total}.`;
     if(enemyDef.special==='poison'){ p.statusEffects.poisoned = 2; t += ' Venom lingers.'; }
     return t;
@@ -2097,16 +2194,18 @@ function doCombatRound(){
   const result = playerAttackRoll(p);
   let text = result.text;
   COMBAT.enemyStatus = COMBAT.enemyStatus || {};
-  setTimeout(()=>playSfx(result.hit ? (result.mult>1?'crit':'hit') : 'miss'), 190);
+  setTimeout(()=>playSfx(result.hit ? (result.crit ? 'crit' : 'hit') : 'miss'), 190);
 
   if(result.hit){
     const dmg = rollExpr(result.dmgDie);
-    const mult = result.mult * getStat(p,'dmgMult');
+    // A natural 20 doubles damage on top of any class multiplier.
+    const mult = result.mult * getStat(p,'dmgMult') * (result.crit ? 2 : 1);
     const total = Math.round(dmg.total * mult);
     COMBAT.enemyHp -= total;
-    text += mult>1
-      ? ` — HIT for ${dmg.detail} x${mult} = ${total} dmg.`
-      : ` — HIT for ${dmg.detail} dmg.`;
+    text += result.crit
+      ? ` — <b>CRITICAL!</b> ${p.name} ${attackFlavor(p.cls,true)} for ${total}.`
+      : ` — ${p.name} ${attackFlavor(p.cls,true)} for ${total}.`;
+    setTimeout(()=>fxHit(total, { crit: result.crit }), 200);
 
     // Fire onHit effects from every held item that has them. Fully
     // data-driven, so a module weapon's onHit behaves like a core one's.
@@ -2119,7 +2218,9 @@ function doCombatRound(){
       if(notes) text += ` ${def.name}: ${notes}.`;
     });
   } else {
-    text += ` — MISS.`;
+    text += result.fumble
+      ? ` — <b>fumble!</b> ${p.name} ${attackFlavor(p.cls,false)}.`
+      : ` — ${p.name} ${attackFlavor(p.cls,false)}.`;
   }
 
   if(COMBAT.enemyStatus.bleed>0 && COMBAT.enemyHp>0){
@@ -2350,7 +2451,29 @@ function renderTopbar(){
   document.getElementById('tbMapType').textContent = STATE.mapType;
 }
 
+/* With nobody else able to act, "End Turn" is just a button that says
+   "continue" — so the round rolls over on its own. */
+function maybeAutoRound(){
+  if(!STATE || STATE.over || STATE.paused || isRealtime()) return;
+  if(PENDING_PLACEMENT) return;
+  const modal = document.getElementById('modalRoot');
+  if(modal && modal.classList.contains('open')) return;
+  const actors = STATE.players.filter(canAct);
+  if(actors.length !== 1) return;
+  const solo = actors[0];
+  if((solo.ap||0) > 0) return;
+  const idx = STATE.players.indexOf(solo);
+  if(idx > -1) STATE.activeIndex = idx;
+  tickBuffs(solo);
+  solo.ap = getStat(solo,'apMax');
+  STATE.round++;
+  saveGame(true);
+  startTurnClock();
+  log(`Round ${STATE.round} — you press on alone.`, 'system');
+}
+
 function renderTurnbar(){
+  maybeAutoRound();
   const p = activePlayer();
   const hintEl = document.getElementById('turnHint');
   const actions = document.getElementById('turnActions');
@@ -2434,7 +2557,9 @@ function renderTurnbar(){
     ${stranded ? '<button class="btn small danger" id="retreatBtn">↩ Retreat to Entrance</button>' : ''}
     <button class="btn small ghost" id="useItemBtn">Use Item</button>
     ${(!NET.enabled || NET.role==='host') ? '<button class="btn small ghost" id="pauseBtn">⏸</button>' : ''}
-    <button class="btn small primary" id="endTurnBtn">End Turn</button>
+    ${STATE.players.filter(canAct).length > 1
+      ? '<button class="btn small primary" id="endTurnBtn">End Turn</button>'
+      : '<button class="btn small ghost" id="endTurnBtn" title="Nobody to pass to — the round refreshes on its own">Rest a Round</button>'}
   `;
   actions.querySelectorAll('[data-revive]').forEach(btn=>{
     btn.onclick = ()=> actRevive(parseInt(btn.dataset.revive,10));
@@ -3009,12 +3134,34 @@ function renderModulesTab(grid){
       <div class="cardname">${LOADED_MODULES.length} add-on module(s)</div>
       <div class="carddesc">${totals}</div>
     </div>
-    ${LOADED_MODULES.length ? LOADED_MODULES.map(m=>`
+    ${LOADED_MODULES.length ? LOADED_MODULES.map((m,i)=>`
       <div class="card" style="margin-bottom:.6rem;">
-        <div class="cardtype">module · ${m.source}</div>
-        <div class="cardname">📦 ${m.name} <span style="font-weight:400;color:var(--ink-dim);">v${m.version}</span></div>
-        <div class="carddesc">by ${m.author} — added ${m.counts.items} item(s), ${m.counts.enemies} enemy(ies), ${m.counts.traps} trap(s)</div>
+        <div class="cardtype">module · ${m.fromHost ? 'shared by the host' : m.source}</div>
+        <div class="cardname">${m.fromHost?'📥':'📦'} ${m.name} <span style="font-weight:400;color:var(--ink-dim);">v${m.version}</span></div>
+        <div class="carddesc">by ${m.author} — ${m.counts.items} item(s), ${m.counts.enemies} enemy(ies), ${m.counts.traps} trap(s)${
+          m.counts.themes?`, ${m.counts.themes} theme(s)`:''}${m.pack?` · ${(packBytes(m.pack)/1024).toFixed(1)} KB`:''}</div>
+        ${m.pack ? `<div class="modal-actions" style="margin-top:.5rem;">
+          <button class="btn small ghost" data-dlmod="${i}">⬇ Save as file</button>
+        </div>` : ''}
       </div>`).join('') : '<div class="empty-note" style="margin-bottom:1rem;">No add-on modules loaded — core content only.</div>'}
+
+    ${NET.enabled && NET.role==='host' ? `<div class="card" style="margin-bottom:1rem;">
+        <div class="cardtype">multiplayer</div>
+        <div class="cardname">📤 Sharing with players</div>
+        <div class="carddesc">Players who join get your ${shareableModules().length} module(s) automatically,
+          so your content shows up properly on their screens. They can save any of it as a file.</div>
+        <div class="modal-actions" style="margin-top:.5rem;">
+          <button class="btn small primary" id="modPushBtn">Re-send to everyone</button>
+        </div>
+      </div>` : ''}
+    ${NET.enabled && NET.role==='client' && LOADED_MODULES.some(m=>m.fromHost) ? `<div class="card" style="margin-bottom:1rem;">
+        <div class="cardtype">multiplayer</div>
+        <div class="cardname">📥 From the host</div>
+        <div class="carddesc">These arrived with the game. Save any of them to keep for your own runs.</div>
+        <div class="modal-actions" style="margin-top:.5rem;">
+          <button class="btn small primary" id="modDlAllBtn">⬇ Save all host mods</button>
+        </div>
+      </div>` : ''}
     ${MODULE_ERRORS.length ? `<div class="card enemy" style="margin-bottom:1rem;">
         <div class="cardtype">problems</div>
         <div class="cardname">⚠️ ${MODULE_ERRORS.length} module error(s)</div>
@@ -3072,6 +3219,23 @@ function renderModulesTab(grid){
     const text = document.getElementById('modPaste').value.trim();
     if(!text){ feedback('Paste some JSON first.', false); return; }
     tryInstall(text, 'pasted JSON');
+  };
+  grid.querySelectorAll('[data-dlmod]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const m = LOADED_MODULES[parseInt(btn.dataset.dlmod,10)];
+      if(m && m.pack){ downloadPack(m.pack, m.name); feedback(`✅ Saved "${m.name}".`, true); }
+    };
+  });
+  const push = document.getElementById('modPushBtn');
+  if(push) push.onclick = ()=>{
+    shareContentWithAll();
+    feedback(`✅ Sent ${shareableModules().length} module(s) to ${NET.conns.length} player(s).`, true);
+  };
+  const dlAll = document.getElementById('modDlAllBtn');
+  if(dlAll) dlAll.onclick = ()=>{
+    const mods = LOADED_MODULES.filter(m=>m.fromHost && m.pack);
+    mods.forEach((m,i)=>setTimeout(()=>downloadPack(m.pack, m.name), i*250));
+    feedback(`✅ Saving ${mods.length} module(s).`, true);
   };
   document.getElementById('modStudioBtn').onclick = openStudio;
   document.getElementById('modTemplateBtn').onclick = ()=>{
@@ -3355,6 +3519,12 @@ document.getElementById('joinBtn').addEventListener('click', ()=>{
 });
 document.getElementById('netStartBtn').addEventListener('click', hostStartGame);
 document.getElementById('netLeaveBtn').addEventListener('click', netLeave);
+document.getElementById('shareCodeBtn').addEventListener('click', shareRoom);
+document.getElementById('copyCodeBtn').addEventListener('click', copyRoomCode);
+document.getElementById('roomCode').addEventListener('click', shareRoom);
+document.getElementById('roomCode').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter' || e.key===' ') shareRoom();
+});
 document.getElementById('netRetryBtn').addEventListener('click', ()=>{
   document.getElementById('netRetryBtn').style.display='none';
   const code = NET.roomCode || (document.getElementById('joinCode').value||'').toUpperCase();
@@ -3668,6 +3838,54 @@ function pushLobby(){
   netBroadcast({ t:'lobby', roster:NET.roster, objective:NET.objective,
                  turnLimit:NET.turnLimit, mode:NET.mode||'coop', generation:NET.generation });
 }
+/* Sharing the room: the invite carries a link with ?room=CODE so a tap gets
+   the recipient straight to the join screen with the code filled in. Uses the
+   native share sheet where there is one, clipboard otherwise, and a
+   selectable box as a last resort. */
+function inviteUrl(){
+  const base = location.origin + location.pathname;
+  return base + '?room=' + encodeURIComponent(NET.roomCode || '');
+}
+function inviteText(){
+  return `Join my Depths & Spires run — room code ${NET.roomCode}\n${inviteUrl()}`;
+}
+async function shareRoom(){
+  if(!NET.roomCode) return;
+  playSfx('ui_click');
+  const payload = { title:'Depths & Spires', text:`Join my run — room code ${NET.roomCode}`, url:inviteUrl() };
+  try{
+    if(navigator.share){ await navigator.share(payload); netStatus('Invite shared.'); return; }
+  }catch(err){
+    if(err && err.name==='AbortError') return;   // user dismissed the sheet
+  }
+  try{
+    await navigator.clipboard.writeText(inviteText());
+    netStatus('Invite copied to the clipboard.');
+    return;
+  }catch(err){}
+  showInviteFallback();
+}
+function showInviteFallback(){
+  const b = document.getElementById('modalBody');
+  b.innerHTML = `<h2>📤 Invite</h2>
+    <div class="modal-sub">Copy this and send it however you like.</div>
+    <textarea id="inviteText" readonly style="width:100%;min-height:110px;background:var(--bg);
+      border:1px solid var(--line);color:var(--ink);border-radius:3px;padding:.6rem;
+      font-family:'IBM Plex Mono',monospace;font-size:.78rem;">${inviteText()}</textarea>
+    <div class="modal-actions"><button class="btn primary" id="inviteClose">Done</button></div>`;
+  const ta = document.getElementById('inviteText');
+  ta.focus(); ta.select();
+  document.getElementById('inviteClose').onclick = closeModal;
+  openModal();
+}
+async function copyRoomCode(){
+  if(!NET.roomCode) return;
+  try{
+    await navigator.clipboard.writeText(NET.roomCode);
+    netStatus('Room code copied.');
+  }catch(err){ showInviteFallback(); }
+}
+
 function netStatus(msg){
   const n = document.getElementById('netStatus');
   if(n) n.textContent = msg;
@@ -3752,6 +3970,7 @@ function handleHostMessage(conn, msg){
     if(orphan){
       orphan.peerId = conn.peer; orphan.connected = true;
       conn.send({ t:'welcome', seat:orphan.seat, roomCode:NET.roomCode, rejoined:true });
+      shareContentWith(conn);
       log(`${orphan.name} has reconnected.`, 'system');
       renderRoster(); pushLobby();
       if(STATE && !STATE.over){ renderAll(); syncNow(); }
@@ -3786,6 +4005,7 @@ function handleHostMessage(conn, msg){
       STATE.players.push(fresh);
 
       conn.send({ t:'welcome', seat, roomCode:NET.roomCode, midRun:true });
+      shareContentWith(conn);
       log(`${wanted} joins the expedition on Level ${spawnLevel}.`, 'system');
       renderRoster(); pushLobby(); renderAll(); syncNow();
       return;
@@ -3794,6 +4014,7 @@ function handleHostMessage(conn, msg){
     const seat = NET.roster.length;
     NET.roster.push({ peerId:conn.peer, name:wanted, cls:msg.cls||'archer', seat, connected:true });
     conn.send({ t:'welcome', seat, roomCode:NET.roomCode });
+    shareContentWith(conn);
     renderRoster(); pushLobby();
     return;
   }
@@ -3928,6 +4149,7 @@ function handleClientMessage(msg){
   }
   if(msg.t==='inprogress'){ netStatus('That run is already under way — ask the host to finish or restart.'); return; }
   if(msg.t==='start'){ goto('game'); initLogCollapseDefault(); return; }
+  if(msg.t==='contentChunk'){ receiveContentChunk(msg); return; }
   if(msg.t==='snapshot'){
     applyState(msg.state);
     if(msg.roster) NET.roster = msg.roster;
@@ -3936,6 +4158,62 @@ function handleClientMessage(msg){
     renderAll();
     applyPrompt(msg.prompt);
     return;
+  }
+}
+
+/* ---------- sharing the host's mods ----------
+   Clients need the host's content or their UI shows blanks: snapshots only
+   carry ids, so an item from a module the client doesn't have has no name,
+   icon or description. Packs are pushed on join.
+
+   Data channel messages have practical size limits and a theme carrying
+   textures can be large, so packs are split into chunks and reassembled. */
+const CONTENT_CHUNK = 48 * 1024;
+const INBOUND_PACKS = {};
+
+function shareableModules(){
+  // Don't echo a pack straight back to the person who sent it.
+  return LOADED_MODULES.filter(m=>m.pack && !m.fromHost);
+}
+function sendPackTo(conn, pack, label){
+  let text;
+  try{ text = JSON.stringify(pack); }catch(err){ return; }
+  const id = 'pk' + Math.random().toString(36).slice(2,9);
+  const n = Math.max(1, Math.ceil(text.length / CONTENT_CHUNK));
+  for(let i=0;i<n;i++){
+    try{
+      conn.send({ t:'contentChunk', id, i, n, label,
+                  data: text.slice(i*CONTENT_CHUNK, (i+1)*CONTENT_CHUNK) });
+    }catch(err){ return; }
+  }
+}
+function shareContentWith(conn){
+  const mods = shareableModules();
+  if(!mods.length) return;
+  mods.forEach(m=>sendPackTo(conn, m.pack, m.name));
+}
+function shareContentWithAll(){
+  NET.conns.forEach(c=>shareContentWith(c));
+}
+function receiveContentChunk(msg){
+  const slot = INBOUND_PACKS[msg.id] || (INBOUND_PACKS[msg.id] = { parts:[], n:msg.n, label:msg.label });
+  slot.parts[msg.i] = msg.data;
+  const got = slot.parts.filter(x=>x!==undefined).length;
+  if(got < slot.n) return;
+  delete INBOUND_PACKS[msg.id];
+  try{
+    const pack = JSON.parse(slot.parts.join(''));
+    const res = installModule(pack, 'from host', { fromHost:true });
+    if(res.ok){
+      log(`Received "${pack.name||slot.label}" from the host.`, 'system');
+      // A shared theme needs its cache rebuilt before it can be selected.
+      (pack.themes||[]).forEach(t=>{ delete THEMED_CACHE[t.id]; });
+      const active = document.querySelector('.screen.active');
+      if(active && active.id==='screen-codex') renderCodex('modules');
+      if(STATE) renderAll();
+    }
+  }catch(err){
+    MODULE_ERRORS.push({ source:'host content', message:String(err.message||err) });
   }
 }
 
@@ -4731,6 +5009,60 @@ function audioUnlock(){
   AUDIO.unlocked = true;
 }
 
+/* ---------- screen effects ----------
+   Combat used to be a wall of text. These give a hit some weight: a shake
+   scaled to the blow, a colour wash for crits and damage taken, and the
+   number floating off whatever was struck. All decoration — nothing here
+   touches game state, so it's safe to skip on a spectating client. */
+function fxShake(hard){
+  const el = document.getElementById('app');
+  if(!el) return;
+  const cls = hard ? 'shakes-hard' : 'shakes';
+  el.classList.remove('shakes','shakes-hard');
+  void el.offsetWidth;                 // restart the animation
+  el.classList.add(cls);
+  setTimeout(()=>el.classList.remove(cls), hard?520:360);
+}
+function fxFlash(color){
+  const layer = document.getElementById('fxLayer');
+  if(!layer) return;
+  const d = document.createElement('div');
+  d.className = 'fx-flash';
+  d.style.background = color;
+  layer.appendChild(d);
+  setTimeout(()=>d.remove(), 460);
+}
+function fxFloat(text, color, anchor){
+  const layer = document.getElementById('fxLayer');
+  if(!layer) return;
+  const d = document.createElement('div');
+  d.className = 'fx-float';
+  d.textContent = text;
+  d.style.color = color || '#fff';
+  let x = window.innerWidth/2, y = window.innerHeight/2;
+  const el = typeof anchor==='string' ? document.querySelector(anchor) : anchor;
+  if(el && el.getBoundingClientRect){
+    const r = el.getBoundingClientRect();
+    if(r.width || r.height){ x = r.left + r.width/2; y = r.top + r.height/2; }
+  }
+  d.style.left = x+'px'; d.style.top = y+'px';
+  layer.appendChild(d);
+  setTimeout(()=>d.remove(), 1100);
+}
+// One call for "a blow landed", so both combat paths feel the same.
+function fxHit(amount, opts){
+  opts = opts || {};
+  if(opts.crit){ fxShake(true); fxFlash('radial-gradient(circle,rgba(255,215,120,.75),transparent 65%)'); }
+  else fxShake(false);
+  fxFloat((opts.crit?'CRIT ':'') + '-' + amount, opts.crit ? '#ffd978' : '#ffb4a2',
+          opts.anchor || '#combatRollResult');
+}
+function fxHurt(amount){
+  fxShake(false);
+  fxFlash('radial-gradient(circle at 50% 60%,rgba(156,43,58,.6),transparent 70%)');
+  fxFloat('-'+amount, '#ff8a8a', '#playerPanel .hpbar');
+}
+
 /* ---------- tiny synth helpers ---------- */
 function tone(opts){
   const ctx = AUDIO.ctx; if(!ctx || !AUDIO.enabled) return;
@@ -5010,10 +5342,14 @@ function rtAttack(){
   let text = `${p.name}: ${result.text}`;
   if(result.hit){
     const dmg = rollExpr(result.dmgDie);
-    const mult = result.mult * getStat(p,'dmgMult');
+    const mult = result.mult * getStat(p,'dmgMult') * (result.crit ? 2 : 1);
     const total = Math.round(dmg.total * mult);
     b.hp -= total;
-    text += ` — hit for ${total}.`;
+    text += result.crit
+      ? ` — CRITICAL! ${attackFlavor(p.cls,true)} for ${total}.`
+      : ` — ${attackFlavor(p.cls,true)} for ${total}.`;
+    setTimeout(()=>fxHit(total, { crit:result.crit, anchor:'.enemy-token' }), 180);
+    setTimeout(()=>playSfx(result.crit?'crit':'hit'), 190);
     p.items.forEach(it=>{
       const idef = findItemDef(it.id);
       if(!idef || !idef.onHit || !idef.onHit.length) return;
@@ -5023,8 +5359,10 @@ function rtAttack(){
       b.hp = COMBAT.enemyHp;
       if(notes) text += ` ${idef.name}: ${notes}.`;
     });
-    setTimeout(()=>playSfx('hit'), 190);
-  } else { text += ' — miss.'; setTimeout(()=>playSfx('miss'), 190); }
+  } else {
+    text += ` — ${attackFlavor(p.cls,false)}.`;
+    setTimeout(()=>playSfx('miss'), 190);
+  }
   COMBAT = null;
   log(text, 'combat');
 
@@ -5107,6 +5445,7 @@ function tickBattles(){
       const dmg = rollExpr(def.dmg);
       target.hp = Math.max(0, target.hp - dmg.total);
       playSfx('hurt');
+      if(target === rtControlledPlayer()) fxHurt(dmg.total);
       log(`${def.name} strikes ${target.name} for ${dmg.total}.`, 'combat');
       if(def.special==='poison') target.statusEffects.poisoned = 2;
       if(target.hp<=0) knockDown(target, 'to the '+def.name);
@@ -5294,11 +5633,27 @@ setInterval(()=>{
   }catch(err){}
 }, 400);
 
+// An invite link (?room=CODE) drops the recipient on the join screen with
+// the code already filled in.
+function handleInviteLink(){
+  try{
+    const code = new URLSearchParams(location.search).get('room');
+    if(!code) return;
+    goto('lobby');
+    document.getElementById('joinBox').style.display = 'block';
+    document.getElementById('joinCode').value = code.toUpperCase().slice(0,8);
+    const nameField = document.getElementById('joinName');
+    nameField.focus();
+    netStatus('Invited to room ' + code.toUpperCase() + ' — enter a name and connect.');
+  }catch(err){}
+}
+
 audioLoadPrefs();
 loadCoreContent();
 initSetupDefaults();
 refreshTitleButtons();
 initThemes();
+handleInviteLink();
 // Folder modules load asynchronously; refresh the Codex if it's already open.
 loadModulesFromFolder().then(()=>{
   const active = document.querySelector('.screen.active');

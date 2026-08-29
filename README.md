@@ -494,3 +494,77 @@ Stand on the same tile and a **🤝 Share** button appears:
 Each costs one action (a cooldown in realtime), works in both turn-based and
 realtime, and is host-validated the same way movement is. Helping earns XP, so
 playing medic isn't a waste of a turn.
+
+
+---
+
+# Sharing a room, and sharing your mods
+
+## Tap the room code to share it
+
+The code is tappable, with **📤 Share invite** and **Copy code** beside it. Sharing
+uses the phone's native share sheet where there is one (Messages, WhatsApp, email,
+anything), falls back to the clipboard, and finally to a selectable text box — so it
+works in every browser and webview.
+
+The invite carries a **link**, not just five letters:
+
+```
+Join my Depths & Spires run — room code FR7KQ
+https://you.github.io/depths-and-spires.html?room=FR7KQ
+```
+
+Opening that link drops the recipient straight on the join screen with the code
+already filled in — they only type a name.
+
+## The host's mods travel with the game
+
+This started as a convenience and turned out to be a correctness fix: snapshots only
+carry **ids**, so an item from a module a client doesn't have showed up with no name,
+icon or description. Now every joining player automatically receives the host's
+modules — including on rejoin and drop-in — so custom content displays properly for
+everyone.
+
+Packs are **split into 48 KB chunks and reassembled**, because a theme carrying floor
+textures can be far larger than a data channel will accept in one message. Verified
+with a 90 KB texture: three chunks out, byte-identical pack in.
+
+Players don't just borrow the content for that session — in **Codex → Modules** each
+pack has **⬇ Save as file**, plus **Save all host mods**, so anyone can keep what they
+played with and use it in their own runs. Received packs are labelled *shared by the
+host*, and a client never echoes them back.
+
+The host gets a matching card showing what's being shared and a **Re-send to
+everyone** button.
+
+
+---
+
+# Fixes: floors, stairways, solo turns, combat feel
+
+## The screen going black between floors
+The camera kept its old offset across a floor change. New floor, entirely
+different coordinates — so it was pointed at empty space. `loadFloor()` now
+re-follows the character on every floor change.
+
+## Ladders no longer dump you at the entrance
+Stairways are **paired on first use**. Going down records the exact tile you left
+from, and the stairway you arrive at records the way back. Return trips now put you
+where you actually came from instead of the level entrance.
+
+## No End Turn when you're the last one standing
+If nobody else can act, the round rolls over by itself — refreshing actions, ticking
+buffs and autosaving. The button becomes **Rest a Round** for when you want to pass
+time deliberately.
+
+## Combat
+- **Critical hits** on a natural 20 — double damage, gold screen flash, heavier
+  shake, and its own sound. **Fumbles** on a natural 1 always miss.
+- **Screen effects**: shake scaled to the blow, a red wash when you take damage, and
+  floating damage numbers over whatever was struck.
+- **Varied attack descriptions** per class, for hits and misses, so repeated rounds
+  stop reading identically.
+- Enemy **status chips** (bleeding / stunned / frozen) now show in the combat panel.
+
+All of it applies to both turn-based and realtime. The effects are pure decoration —
+they never touch game state.
