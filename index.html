@@ -158,6 +158,14 @@ button{font-family:inherit;}
   box-shadow:0 calc(var(--cs) * 0.05) 0 -2px rgba(0,0,0,.55), 0 calc(var(--cs) * 0.14) calc(var(--cs) * 0.2) -6px rgba(0,0,0,.7);}
 .cell img{width:100%; height:100%; display:block; image-rendering:auto; -webkit-user-drag:none;}
 .cell .avatar-layer{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:2px; flex-wrap:wrap; pointer-events:none;}
+.enemy-token{position:absolute;top:6%;left:50%;transform:translateX(-50%);font-size:1.5em;
+  filter:drop-shadow(0 2px 4px #000);pointer-events:none;}
+.enemy-hp{position:absolute;top:2%;left:22%;width:56%;height:5%;background:#2a1416;
+  border:1px solid #5a2a30;border-radius:3px;overflow:hidden;pointer-events:none;}
+.enemy-hp span{display:block;height:100%;background:linear-gradient(90deg,#9c2b3a,#c94656);}
+.cooldown-bar{height:4px;border-radius:2px;background:#241a19;overflow:hidden;margin-top:.3rem;}
+.cooldown-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--ember),var(--ember-bright));
+  transition:width .12s linear;}
 .downed-token{background:#2a1416 !important; border-color:#5a2a30 !important;
   box-shadow:0 0 10px rgba(156,43,58,.7), 0 2px 6px rgba(0,0,0,.6) !important; filter:grayscale(.2);}
 .avatar-token{width:22%; aspect-ratio:1; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.9em; border:2px solid #1a1310; box-shadow:0 3px 8px rgba(0,0,0,.7), 0 0 0 2px rgba(255,255,255,.06);}
@@ -330,6 +338,7 @@ button{font-family:inherit;}
       <button class="btn ghost" data-nav="lobby">Play with Friends</button>
       <button class="btn ghost" data-nav="codex">Bestiary &amp; Armory</button>
       <button class="btn ghost" id="titleStudioBtn">🛠 Module Studio</button>
+      <button class="btn ghost" id="titleSoundBtn">🔊 Sound</button>
     </div>
   </section>
 
@@ -397,8 +406,9 @@ button{font-family:inherit;}
       <div class="tb-title">Depths &amp; Spires</div>
       <div class="tb-item">Player: <b id="tbPlayer">-</b></div>
       <div class="tb-item">Round: <b id="tbRound">1</b></div>
-      <div class="tb-item">Level: <b id="tbLevel">1</b></div>
+      <div class="tb-item">Floor: <b id="tbLevel">1</b></div>
       <div class="tb-item">Map: <b id="tbMapType">Depth</b></div>
+      <button class="btn small ghost" id="soundBtn" title="Sound">🔊</button>
       <button class="btn small ghost" id="saveBtn" title="Save &amp; continue">💾</button>
       <button class="btn small ghost" id="gameStudioBtn" title="Module Studio">🛠</button>
       <button class="btn small ghost" data-nav="codex">Codex</button>
@@ -469,6 +479,7 @@ button{font-family:inherit;}
         <button class="btn small pill active" data-studio="items">Items</button>
         <button class="btn small pill" data-studio="enemies">Enemies</button>
         <button class="btn small pill" data-studio="traps">Traps</button>
+        <button class="btn small pill" data-studio="themes">Tile themes</button>
       </div>
 
       <div id="studioList"></div>
@@ -536,6 +547,10 @@ button{font-family:inherit;}
             <div class="pill-row" id="netObjectiveRow"></div>
           </div>
           <div class="setup-section">
+            <h2>Play style</h2>
+            <div class="pill-row" id="netModeRow"></div>
+          </div>
+          <div class="setup-section">
             <h2>Turn limit</h2>
             <div class="pill-row" id="netTimerRow"></div>
           </div>
@@ -567,6 +582,234 @@ button{font-family:inherit;}
 // Base64 tile art, embedded so this stays a single file.
 const TILE_IMAGES = {"Base_tile": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAG40lEQVR4nO3bTU/bShiG4RnbjG01KKz4o0AWCBWBUgnx8UezIREtcSYZ+yysRmfjIyZ4OETPfa2qSNitNDdveUcYAwAAAAAAAAAAAAAAAAAAAAAAjo097Mvm8/lut3PO7Xa7tm27rsuybNy/GfAf2ra11mZZVhSF974oipubmwOeE31qy7I0xjjnsixbrVbWWmPMycnJAe8GDtYfOWvtarXKssw5Z/4ezihF7BdcXl6enp7OZjNjzMvLy+vra1VV3vs8z2MfBRzMe++ca5rm/Pz84uLCGPPw8PD29vbr16+o50RPAOfc/qyv1+uqqtbrdd8f8GWcc/vj13+S5/kB5zB6AuR5vlwu5/O5Mab/X9fT09P7+3vsc4DPCCGcnZ1dXV0ZY/rTuFwu67qOfU70BPDe13XdNM3+ZSEE733sc4DP8N6HEPo/7w/kAecwegL0m5+yLBeLxf39fVVVs9msLMvr6+vYRwEHe35+3mw2j4+PTdMsFovJZNKvJWOfEz0BttutMabruul02rZt39xms4l9DvAZ/ZHz3rdtO51Ou64zfw9nlOgJ0O/7u67bbrfW2hDC3d2dMeb29tZwP4CxDe37+1MXQrDW9ufeWtsv5aOMdjq5H0AKY+37h0RPgCHcDyCFoX3/WM8fbQJwP4AUxtr3DxltAnA/gBSG9v37HegnjTYBuB9ACmPt+4eMNgG4H0AKQ/v+bzcBuB9ACmPt+4eMNgG4H8BnpN73D0l+CrkfwEek3vcPGW0CDOF+AB+Ret8/JPkE4H4AH5F63z8k+QTgfgAfkXrfPyT5BOB+AB+Ret8/JPkE4H4AH5F63z8k+QTgfgAfkXrfPyT5BBi6H/j582fqV+PopNv3D+E2CtIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANIIANKK1C9o29Zam2VZURTe+6Iobm5uUr8UR+f29tYYM5/Pd7udc26327Vt23VdlqX9Hp18ApycnBhjrLWr1SrLMuecMaYsy9TvxXHpj4RzLsuy1WplrTV/D09SySeA99451zTN+fn5xcWFMebh4eHt7S31e3FcLi8vT09PZ7OZMebl5eX19bWqKu99nudJ35t8Ajjn1ut1VVXr9br/JM/zfg4Ae865/VnfH5gvOCfJJ0AI4ezs7Orqyhgzn8+NMcvlsq7rEELqV+OI5Hm+XC77E9L/lPj09PT+/p76vckngPd+f9brum6apq5r733q9+K4eO/3x6P/JITwBeck+QR4fn7ebDaPj49N0ywWi8lk0v+YzwTAv/Wbn7IsF4vF/f19VVWz2awsy+vr66TvTT4BNpuNMcZ737btdDrtus4Ys91uU78Xx6U/El3XTafTtm377/394UlqtAkwtO+/u7szxoQQrLX9P9Ja2y+5gL1+39913Xa7tdaGEPqTk/p+YLQJwL4fKaS+HxhtArDvRwqp7wdGmwDs+5FC6vuB0SYA+36kkPp+YLQJwL4fKaS+HxhtArDvRwqp7wdGmwDs+5FC6vuB6AnAvh9fKfZ+IPr5sV/Avh/fwVj3A9ETgH0/voOh+4HY50RPAPb9+A7Guh+IngDs+/EdjHU/ED0B2PfjOxjrfiB6S1OW5X7f/+fPn8lkEkIoioIJgK+U5/lut8vz/Pfv3z9+/NjfD8RuSKMnAPt+fAf/1+8PAAAAAAAAAAAAAAAAAAAAAACA/98/w0pBNPwXKQIAAAAASUVORK5CYII=", "Corner": "data:image/png;base64,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", "Dead_End": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAHzElEQVR4nO3dW0/bSBiH8Rnb2I4ICld8USAXFBWB0gpx+KK5IRGHOJPY3gur0R4UpGk9xLP/53eJVHs266fv8rpsrfmfur297eU6379/7+U6h3J3d9fLdW5ubnq5ztAkhz4AcEgEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGkEAGnZ7/2y2Wy23W7zPN9ut03TtG2bJMNqqfvz68M/59A0TWOtTZIkyzLnXJZl19fXpr+fr+jLvnP68n4aiqIwxuR5niTJcrm01hpjjo6OfuPeQcVyzqHpPiJr7XK5TJIkz3Pz68MclL7O6T0BLi4uTk5OptOpMeb5+fnl5aUsS+dcmqa+lwoqlnMOjXMuz/Oqqs7Ozs7Pz40x9/f3r6+vhz7Xv+07548fP7yu4z0B8jzfPUOr1aosy9Vq1fU3KLGcc2jyPN99XN1X0jQd4OfW1zm9J0CapovFYjabGWO6/+p6fHz8+PjwvU5osZxzaOq6Pj09vby8NMZ0n95isRiNRnVdH/po/7DvnL7X8Z4AzrnRaFRV1e5mdV0753yvE1os5xwa59zuWd99gAP83Po6p/cE6DYqRVHM5/O7u7uyLKfTaVEUV1dXvpcKKpZzDs3T09N6vX54eKiqaj6fj8fjbo02tAmw75y+1/GeAJvNxhjTtu1kMmmapmtuvV77Xie0WM45NN1H5JxrmmYymbRta359mIPS1zm9J0C3R2/bdrPZWGvruu42xEPbu8dyzkP5fN9f17W1tnuerLXdEvl/ec7e/q3HsneP5Zyhqe379/nNN8H/FcvePZZzhhb7vr+v6/c2AWLZu8dyztDU9v379DYBYtm7x3LO0GLf9/d1zt4mQCx791jOGZravn+f3iZALHv3WM4ZWuz7/sFNgFj27rGcMzS1ff8+vU2AWPbuvuc8yCF7xL7/c8Gfwlj27rGc0xf7/s/1NgH2iWXvvu+chz7Xn2Lf/7ngEyCWvXss5/TFvv9zwSdALHv3WM7pi33/54JPgFj27rGc0xf7/s95fzft+38HSNN0u92mafr29nZ8fDzYvfu+c1ZVdeij/ZGyLHd79Pf39/F4XNd1lmVDmwA/f/7s5Zy+f5tl8AkQy949lnP6Yt//ueDfA+zbuw//79/99u3boY/Qg7heZXz9ewmtnwIB/oUAII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AII0AIC0LfYOmaay1SZJkWeacy7Ls+vo69E0RnZubG2PMbDbbbrd5nm+326Zp2rZNkrC/RwefAEdHR8YYa+1yuUySJM9zY0xRFKHvi7h0j0Se50mSLJdLa6359fAEFXwCOOfyPK+q6uzs7Pz83Bhzf3//+voa+r6Iy8XFxcnJyXQ6NcY8Pz+/vLyUZemcS9M06H2DT4A8z1erVVmWq9Wq+0qapt0cAHbyPN8967sH5guek+AToK7r09PTy8tLY8xsNjPGLBaL0WhU13XoWyMiaZouFovuCem+S3x8fPz4+Ah93+ATwDm3e9ZHo1FVVaPRyDkX+r6Ii3Nu93h0X6nr+guek+AT4Onpab1ePzw8VFU1n8/H43H3bT4TAH/XbX6KopjP53d3d2VZTqfToiiurq6C3jf4BFiv18YY51zTNJPJpG1bY8xmswl9X8SleyTatp1MJk3TdL/3dw9PUL1NgH37/tvbW2NMXdfW2u4f0lrbLbmAnW7f37btZrOx1tZ13T05od8P9DYB2PcjhNDvB3qbAOz7EULo9wO9TQD2/Qgh9PuB3iYA+36EEPr9QG8TgH0/Qgj9fqC3CcC+HyGEfj/Q2wRg348QQr8f8J4A7PvxlXzfD3hf3/cXsO/HEPT1fsB7ArDvxxDsez/gex3vCcC+H0PQ1/sB7wnAvh9D0Nf7Ae8JwL4fQ9DX+wHvLU1RFLt9//v7+3g8rus6yzImAL5Smqbb7TZN07e3t+Pj4937Ad8NqfcEYN+PITjUzw8AAAAAAAAAAAAAAAAAAAAAAIDD+wtDGWfopaztKQAAAABJRU5ErkJggg==", "Fourway": "data:image/png;base64,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", "Hallway": "data:image/png;base64,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", "Threeway": "data:image/png;base64,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"};
 
+/* ======================================================================
+   TILE THEMES
+   ----------------------------------------------------------------------
+   The shipped tile art is three tones: white floor, grey walls, black
+   outline/bevels. Rather than ask modders to redraw the geometry, a theme
+   remaps those tones. The base art is decoded once into pixel data, then
+   recoloured per theme on a canvas — which keeps every bevel and doorway
+   exactly as drawn while allowing any palette or floor texture.
+
+   A theme may also override individual tiles outright with its own image,
+   for anyone who does want to draw their own.
+   ====================================================================== */
+const TILE_ORDER = ['Base_tile','Corner','Dead_End','Fourway','Hallway','Threeway'];
+const BUILTIN_THEMES = [
+  { id:'stone', name:'Quarried Stone (default)', builtin:true,
+    floor:'#ffffff', wall:'#808080', wallShade:'#000000', outline:'#000000' },
+  { id:'mossy', name:'Mossy Crypt',
+    floor:'#d9d6bd', wall:'#5f6f52', wallShade:'#1e2a1c', outline:'#0a0f0a' },
+  { id:'ember', name:'Ember Forge',
+    floor:'#f0d7ae', wall:'#7a3f24', wallShade:'#2a1109', outline:'#150803' },
+  { id:'frost', name:'Frostbound Spire',
+    floor:'#eaf4ff', wall:'#5b7d99', wallShade:'#1b2b3a', outline:'#0a141d' },
+  { id:'void',  name:'Void Sanctum',
+    floor:'#cfc2e8', wall:'#4a3a6b', wallShade:'#1a1226', outline:'#0a0710' },
+];
+const THEME_KEY = 'depths-and-spires:theme:v1';
+
+/* ---------- blend masks ----------
+   A mask is a greyscale image the same way a stencil is: white keeps
+   texture A, black swaps to texture B, and the greys in between crossfade.
+   These are generated procedurally so a theme can reference one by id
+   without shipping an image, but any uploaded image works identically. */
+const MASK_IDS = ['none','cracks','rubble','checker','wear','stripes','speckle'];
+const MASK_CACHE = {};
+function buildMask(id, size){
+  size = size || 256;
+  if(MASK_CACHE[id]) return MASK_CACHE[id];
+  const c = document.createElement('canvas'); c.width=c.height=size;
+  const g = c.getContext('2d');
+  g.fillStyle='#fff'; g.fillRect(0,0,size,size);
+  g.fillStyle='#000'; g.strokeStyle='#000';
+
+  if(id==='cracks'){
+    g.lineCap='round';
+    for(let i=0;i<7;i++){
+      let x=Math.random()*size, y=Math.random()*size, a=Math.random()*Math.PI*2;
+      g.lineWidth = 5+Math.random()*7;
+      g.beginPath(); g.moveTo(x,y);
+      for(let step=0; step<14; step++){
+        a += (Math.random()-0.5)*1.1;
+        x += Math.cos(a)*size/16; y += Math.sin(a)*size/16;
+        g.lineTo(x,y);
+      }
+      g.stroke();
+    }
+  } else if(id==='rubble'){
+    for(let i=0;i<90;i++){
+      const r = 3+Math.random()*14;
+      g.beginPath();
+      g.ellipse(Math.random()*size, Math.random()*size, r, r*(0.5+Math.random()), Math.random()*3, 0, Math.PI*2);
+      g.fill();
+    }
+  } else if(id==='checker'){
+    const n=4, cell=size/n;
+    for(let y=0;y<n;y++) for(let x=0;x<n;x++)
+      if((x+y)%2===0) g.fillRect(x*cell,y*cell,cell,cell);
+  } else if(id==='wear'){
+    const grd = g.createRadialGradient(size/2,size/2,size*0.15,size/2,size/2,size*0.72);
+    grd.addColorStop(0,'#fff'); grd.addColorStop(1,'#000');
+    g.fillStyle=grd; g.fillRect(0,0,size,size);
+  } else if(id==='stripes'){
+    for(let i=0;i<size;i+=32) g.fillRect(i,0,16,size);
+  } else if(id==='speckle'){
+    const img=g.getImageData(0,0,size,size); const d=img.data;
+    for(let i=0;i<d.length;i+=4){
+      const v = Math.random()<0.4 ? 0 : 255;
+      d[i]=d[i+1]=d[i+2]=v;
+    }
+    g.putImageData(img,0,0);
+  } else {
+    MASK_CACHE[id]=null; return null;   // 'none'
+  }
+  MASK_CACHE[id] = c.toDataURL('image/png');
+  return MASK_CACHE[id];
+}
+function maskSource(theme){
+  if(!theme) return null;
+  if(theme.mask && theme.mask.startsWith('data:')) return theme.mask;
+  if(theme.mask && theme.mask!=='none') return buildMask(theme.mask);
+  return null;
+}
+let ACTIVE_THEME = 'stone';
+const TILE_BASE = {};        // name -> ImageData of the shipped art
+const THEMED_CACHE = {};     // themeId -> { name: dataURL }
+let TILE_BASE_READY = false;
+
+function allThemes(){ return BUILTIN_THEMES.concat(CONTENT.themes || []); }
+function findTheme(id){ return allThemes().find(t=>t.id===id) || BUILTIN_THEMES[0]; }
+
+function loadImage(src){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    img.onload = ()=>resolve(img);
+    img.onerror = ()=>reject(new Error('image failed to load'));
+    img.src = src;
+  });
+}
+async function loadBaseTiles(){
+  for(const name of TILE_ORDER){
+    try{
+      const img = await loadImage(TILE_IMAGES[name]);
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth || 256; c.height = img.naturalHeight || 256;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img,0,0);
+      TILE_BASE[name] = ctx.getImageData(0,0,c.width,c.height);
+    }catch(err){ /* leave it out; we fall back to the original art */ }
+  }
+  TILE_BASE_READY = Object.keys(TILE_BASE).length>0;
+}
+function hexToRgb(hex){
+  const h = String(hex||'#000').replace('#','');
+  const full = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+  return [parseInt(full.slice(0,2),16)||0, parseInt(full.slice(2,4),16)||0, parseInt(full.slice(4,6),16)||0];
+}
+const lerp = (a,b,t)=> Math.round(a + (b-a)*t);
+
+/* Remap one tile's tones to a theme. Floor pixels can be filled from a
+   texture image instead of a flat colour. */
+function recolorTile(name, theme, texData, texDataB, maskData){
+  const base = TILE_BASE[name];
+  if(!base) return TILE_IMAGES[name];
+  const floorB = hexToRgb(theme.floorB || theme.floor || '#ffffff');
+  const floor = hexToRgb(theme.floor || '#ffffff');
+  const wall  = hexToRgb(theme.wall  || '#808080');
+  const shade = hexToRgb(theme.wallShade || '#000000');
+  const line  = hexToRgb(theme.outline || '#000000');
+
+  const out = document.createElement('canvas');
+  out.width = base.width; out.height = base.height;
+  const ctx = out.getContext('2d');
+  const img = ctx.createImageData(base.width, base.height);
+  const src = base.data, dst = img.data;
+
+  for(let i=0;i<src.length;i+=4){
+    const L = (src[i]*0.299 + src[i+1]*0.587 + src[i+2]*0.114);
+    let r,g,b;
+    if(L > 200){
+      const px = (i/4) % base.width, py = Math.floor((i/4)/base.width);
+      // Sample layer A (texture or flat colour)
+      let ar,ag,ab;
+      if(texData){
+        const ti = ((py % texData.height)*texData.width + (px % texData.width))*4;
+        ar=texData.data[ti]; ag=texData.data[ti+1]; ab=texData.data[ti+2];
+      } else { ar=floor[0]; ag=floor[1]; ab=floor[2]; }
+      if(maskData){
+        // Layer B, then crossfade by the mask: white keeps A, black is B.
+        let br,bg,bb;
+        if(texDataB){
+          const bi = ((py % texDataB.height)*texDataB.width + (px % texDataB.width))*4;
+          br=texDataB.data[bi]; bg=texDataB.data[bi+1]; bb=texDataB.data[bi+2];
+        } else { br=floorB[0]; bg=floorB[1]; bb=floorB[2]; }
+        const mi = ((py % maskData.height)*maskData.width + (px % maskData.width))*4;
+        const m = (maskData.data[mi]*0.299 + maskData.data[mi+1]*0.587 + maskData.data[mi+2]*0.114)/255;
+        r = lerp(br,ar,m); g = lerp(bg,ag,m); b = lerp(bb,ab,m);
+      } else { r=ar; g=ag; b=ab; }
+    } else if(L < 60){
+      r=line[0]; g=line[1]; b=line[2];
+    } else {
+      const t = Math.max(0, Math.min(1, (L-60)/140));
+      r=lerp(shade[0],wall[0],t); g=lerp(shade[1],wall[1],t); b=lerp(shade[2],wall[2],t);
+    }
+    dst[i]=r; dst[i+1]=g; dst[i+2]=b; dst[i+3]=src[i+3];
+  }
+  ctx.putImageData(img,0,0);
+  return out.toDataURL('image/png');
+}
+
+// Decode any image source (data URI or generated mask) into pixel data.
+async function imageDataFrom(src){
+  if(!src) return null;
+  try{
+    const img = await loadImage(src);
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img,0,0);
+    return g.getImageData(0,0,c.width,c.height);
+  }catch(err){ return null; }
+}
+async function buildTheme(themeId){
+  const theme = findTheme(themeId);
+  if(theme.builtin && !theme.floorTexture && !theme.tiles && !theme.mask) return null;  // shipped art
+  if(!TILE_BASE_READY) await loadBaseTiles();
+
+  const texData  = await imageDataFrom(theme.floorTexture);
+  const texDataB = await imageDataFrom(theme.floorTextureB);
+  const maskData = await imageDataFrom(maskSource(theme));
+  const set = {};
+  for(const name of TILE_ORDER){
+    set[name] = (theme.tiles && theme.tiles[name]) ? theme.tiles[name]
+                                                   : recolorTile(name, theme, texData, texDataB, maskData);
+  }
+  THEMED_CACHE[themeId] = set;
+  return set;
+}
+// Everything that draws a tile goes through this.
+function tileImage(name){
+  const set = THEMED_CACHE[ACTIVE_THEME];
+  return (set && set[name]) ? set[name] : TILE_IMAGES[name];
+}
+async function setTheme(themeId, rerender){
+  ACTIVE_THEME = themeId;
+  try{ localStorage.setItem(THEME_KEY, themeId); }catch(err){}
+  if(!THEMED_CACHE[themeId]) await buildTheme(themeId);
+  if(rerender!==false){
+    if(STATE) renderMap();
+    const active = document.querySelector('.screen.active');
+    if(active && active.id==='screen-codex') renderCodex('tiles');
+  }
+}
+async function initThemes(){
+  let saved = null;
+  try{ saved = localStorage.getItem(THEME_KEY); }catch(err){}
+  await loadBaseTiles();
+  if(saved && saved!=='stone'){ await setTheme(saved, false); }
+}
+
 /* ---------------------------- DATA ---------------------------- */
 const DIRS = ['N','E','S','W'];
 const DIR_VEC = { N:[0,-1], E:[1,0], S:[0,1], W:[-1,0] };
@@ -587,17 +830,20 @@ const DECK_COMPOSITION = { deadend:6, corner:10, hallway:10, threeway:8, fourway
 
 const CLASS_DEFS = {
   warrior: {
-    name:'Warrior', icon:'⚔️', maxHp:22, def:13, atkMod:2, dmg:'1d8', mechanic:'might',
+    name:'Warrior', icon:'⚔️', maxHp:30, def:13, atkMod:2, dmg:'1d8', mechanic:'might',
+    hpPerLevel:6,
     desc:"Squares up and swings hard. Rolls two dice on every attack and keeps the higher — steady, dependable damage.",
     tagline:'Roll twice, keep the best.'
   },
   archer: {
-    name:'Archer', icon:'🏹', maxHp:15, def:10, atkMod:1, dmg:'1d6', mechanic:'twoshots',
+    name:'Archer', icon:'🏹', maxHp:22, def:11, atkMod:1, dmg:'1d6', mechanic:'twoshots',
+    hpPerLevel:5,
     desc:"Looses an arrow from range first. If it misses, follows up with a hurried, less accurate close shot.",
     tagline:'Two shots: one long, one desperate.'
   },
   thief: {
-    name:'Thief', icon:'🗡️', maxHp:13, def:11, atkMod:1, dmg:'1d6', mechanic:'shadow',
+    name:'Thief', icon:'🗡️', maxHp:20, def:12, atkMod:1, dmg:'1d6', mechanic:'shadow',
+    hpPerLevel:4,
     desc:"Checks for an opening before striking. A successful stealth check multiplies the damage of the hit that follows.",
     tagline:'Vanish, then strike true.'
   },
@@ -630,7 +876,7 @@ const CORE_ITEMS = [
   { id:'frost_bow', name:'Frost Bow', type:'weapon', cls:'archer', uses:-1, icon:'❄️',
     desc:'Arrows rimed with unnatural frost. A hit may freeze the enemy in place for a turn.',
     onHit:[{ kind:'status', status:'freeze', target:'enemy', duration:1, chance:0.4 }] },
-  { id:'minor_potion', name:'Minor Healing Draught', type:'consumable', cls:null, uses:1, icon:'🧪', usableIn:['combat','explore'],
+  { id:'minor_potion', name:'Minor Healing Draught', type:'consumable', cls:null, uses:2, rarity:3, icon:'🧪', usableIn:['combat','explore'],
     desc:'A bitter tonic that mends 2d4+2 HP when drunk.',
     effects:[{ kind:'heal', amount:'2d4+2' }] },
   { id:'lucky_coin', name:'Lucky Coin', type:'trinket', cls:null, uses:1, icon:'🪙', usableIn:['combat','explore'],
@@ -663,7 +909,7 @@ const CORE_TRAPS = [
    JSON add-on modules are merged in on top. Nothing else in the codebase
    references the CORE_* arrays directly — they all go through here, so a
    module can add to (or override, by reusing an id) any of it. */
-const CONTENT = { items:[], enemies:[], traps:[] };
+const CONTENT = { items:[], enemies:[], traps:[], themes:[], sounds:[] };
 const LOADED_MODULES = [];   // { name, version, author, counts, source }
 const MODULE_ERRORS = [];    // { source, message }
 
@@ -673,8 +919,8 @@ function normalizeUses(u){
   return u;
 }
 function registerContent(pack, sourceLabel){
-  const counts = { items:0, enemies:0, traps:0 };
-  for(const kind of ['items','enemies','traps']){
+  const counts = { items:0, enemies:0, traps:0, themes:0, sounds:0 };
+  for(const kind of ['items','enemies','traps','themes','sounds']){
     const list = pack[kind];
     if(!Array.isArray(list)) continue;
     for(const def of list){
@@ -690,6 +936,7 @@ function registerContent(pack, sourceLabel){
 }
 function loadCoreContent(){
   CONTENT.items.length = 0; CONTENT.enemies.length = 0; CONTENT.traps.length = 0;
+  CONTENT.themes.length = 0; CONTENT.sounds.length = 0;
   registerContent({ items:CORE_ITEMS, enemies:CORE_ENEMIES, traps:CORE_TRAPS }, 'core');
 }
 
@@ -737,13 +984,53 @@ function findTrapDef(id){ return CONTENT.traps.find(t=>t.id===id); }
 // than spent on walking. Items/modules can raise it via the "apMax" stat.
 const BASE_AP = 3;
 
+/* ---------------------------- PROGRESSION ----------------------------
+   Characters earn XP and grow. Note this is deliberately *not* called
+   "level" in the data — that word already means the dungeon floor a
+   character is standing on. Character advancement is `charLevel`, and the
+   UI calls the floor "Floor" to keep the two apart. */
+function charLevelOf(p){ return p.charLevel || 1; }
+// Total XP required to have reached a given character level.
+function xpForLevel(n){
+  let total = 0;
+  for(let i=1;i<n;i++) total += 20 + (i-1)*15;
+  return total;
+}
+function xpToNext(p){ return xpForLevel(charLevelOf(p)+1) - (p.xp||0); }
+function xpProgress(p){
+  const lo = xpForLevel(charLevelOf(p)), hi = xpForLevel(charLevelOf(p)+1);
+  return Math.max(0, Math.min(1, ((p.xp||0)-lo) / Math.max(1,(hi-lo))));
+}
+function awardXp(p, amount, reason){
+  if(!p || !p.alive || amount<=0) return;
+  p.xp = (p.xp||0) + amount;
+  let leveled = false;
+  while((p.xp||0) >= xpForLevel(charLevelOf(p)+1)){
+    p.charLevel = charLevelOf(p) + 1;
+    leveled = true;
+    // Growing max HP also heals by the amount gained, so levelling is a
+    // genuine second wind rather than just a bigger empty bar.
+    const gain = CLASS_DEFS[p.cls].hpPerLevel || 4;
+    p.hp = Math.min(getStat(p,'maxHp'), p.hp + gain);
+    log(`${p.name} reaches level ${p.charLevel}! (+${gain} max HP)`, 'loot');
+    playSfx('victory');
+  }
+  if(!leveled && reason) log(`${p.name} gains ${amount} XP (${reason}).`, 'system');
+}
+function xpValueOf(enemyDef){
+  if(!enemyDef) return 5;
+  if(enemyDef.xp!==undefined) return enemyDef.xp;
+  return Math.max(4, Math.round((enemyDef.hp + enemyDef.def) / 2)) * (enemyDef.boss ? 4 : 1);
+}
+
 function getStat(p, stat){
   let base;
+  const lvl = charLevelOf(p);
   switch(stat){
-    case 'atkMod': base = CLASS_DEFS[p.cls].atkMod; break;
-    case 'def':    base = CLASS_DEFS[p.cls].def; break;
-    case 'maxHp':  base = CLASS_DEFS[p.cls].maxHp; break;
-    case 'apMax':  base = BASE_AP; break;
+    case 'atkMod': base = CLASS_DEFS[p.cls].atkMod + Math.floor((lvl-1)/2); break;
+    case 'def':    base = CLASS_DEFS[p.cls].def + Math.floor((lvl-1)/3); break;
+    case 'maxHp':  base = CLASS_DEFS[p.cls].maxHp + (lvl-1)*(CLASS_DEFS[p.cls].hpPerLevel||4); break;
+    case 'apMax':  base = BASE_AP + (lvl>=5 ? 1 : 0); break;
     case 'dmgMult':base = 1; break;
     default:       base = 0;
   }
@@ -862,9 +1149,9 @@ function itemUsableIn(def, where){
 function validateModule(pack){
   const errs = [];
   if(typeof pack !== 'object' || pack===null) { errs.push('module must be a JSON object'); return errs; }
-  const hasAny = ['items','enemies','traps'].some(k=>Array.isArray(pack[k]) && pack[k].length);
-  if(!hasAny) errs.push('module has no items, enemies, or traps arrays');
-  for(const kind of ['items','enemies','traps']){
+  const hasAny = ['items','enemies','traps','themes','sounds'].some(k=>Array.isArray(pack[k]) && pack[k].length);
+  if(!hasAny) errs.push('module has no items, enemies, traps, themes, or sounds arrays');
+  for(const kind of ['items','enemies','traps','themes','sounds']){
     if(pack[kind]===undefined) continue;
     if(!Array.isArray(pack[kind])){ errs.push(`"${kind}" must be an array`); continue; }
     pack[kind].forEach((d,i)=>{
@@ -881,6 +1168,13 @@ function validateModule(pack){
       }
       if(kind==='enemies' && (d.hp===undefined || d.dmg===undefined)) errs.push(`enemies[${i}] (${d.id||'?'}) needs "hp" and "dmg"`);
       if(kind==='traps' && (d.dmg===undefined || d.dc===undefined)) errs.push(`traps[${i}] (${d.id||'?'}) needs "dmg" and "dc"`);
+      if(kind==='sounds' && !d.src) errs.push(`sounds[${i}] (${d.id||'?'}) needs a "src" audio data URI`);
+      if(kind==='themes'){
+        ['floor','wall','outline'].forEach(c=>{
+          if(d[c] && !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(d[c]))
+            errs.push(`themes[${i}] "${c}" must be a hex colour like #4f8f7b`);
+        });
+      }
     });
   }
   return errs;
@@ -892,6 +1186,7 @@ function installModule(pack, sourceLabel){
     return { ok:false, errors:errs };
   }
   const counts = registerContent(pack, pack.name || sourceLabel);
+  if(Array.isArray(pack.sounds) && pack.sounds.length) registerSounds(pack.sounds, pack.name || sourceLabel);
   LOADED_MODULES.push({
     name: pack.name || sourceLabel, version: pack.version || '—',
     author: pack.author || '—', counts, source: sourceLabel,
@@ -997,10 +1292,11 @@ function newGame(config){
     config,
     players: config.players.map((p,i)=>({
       id:i, name:p.name, cls:p.cls,
-      hp:CLASS_DEFS[p.cls].maxHp, maxHp:CLASS_DEFS[p.cls].maxHp,
+      hp:CLASS_DEFS[p.cls].maxHp,
       def:CLASS_DEFS[p.cls].def,
       x:0, y:0,
       items:[], trophies:[], statusEffects:{}, buffs:[], alive:true, downed:false, level:1,
+      xp:0, charLevel:1,
       ap:BASE_AP,
     })),
     activeIndex:0,
@@ -1015,6 +1311,8 @@ function newGame(config){
     treasureFound:false,
     zoom:1,
     floors:{},
+    realtime: config.mode==='realtime',
+    battles:{},
     over:false,
     paused:false,
     turnLimit: (config.turnLimit===undefined ? 0 : config.turnLimit),  // seconds; 0 = off
@@ -1024,6 +1322,7 @@ function newGame(config){
   const start = pickStartTile();
   STATE.grid.set(key(0,0), { type:start.type, rot:start.rot, x:0, y:0, event:null, resolved:true, stairs:false, entrance:true });
   saveActiveFloor();
+  audioUnlock(); startAmbience();
   log(`The party descends into the ${STATE.mapType.toLowerCase()}. Level 1 begins.`, 'system');
   logEntranceDescription(0,0);
   goto('game');
@@ -1137,6 +1436,7 @@ function togglePause(){
 function renderTurnClockOnly(){
   const el2 = document.getElementById('turnClock');
   if(!el2) return;
+  if(isRealtime() && !STATE.paused){ el2.textContent=''; el2.className='turn-clock'; return; }
   if(STATE.paused){ el2.textContent = '⏸ PAUSED'; el2.className='turn-clock paused'; return; }
   const left = turnSecondsLeft();
   if(left===null){ el2.textContent=''; el2.className='turn-clock'; return; }
@@ -1152,6 +1452,7 @@ function renderTurnClockOnly(){
    The expedition only ends when the whole party is down at once. */
 function knockDown(p, reason){
   if(p.downed) return;
+  playSfx('down');
   p.downed = true;
   p.hp = 0;
   p.ap = 0;
@@ -1171,12 +1472,155 @@ function reviveAlly(idx){
   if(!hasAP(healer)){ log(`${healer.name} has no actions left to revive with.`, 'system'); renderTurnbar(); return; }
   spendAP(healer);
   target.downed = false;
+  awardXp(healer, 8, 'saved an ally');
+  playSfx('revive');
   const back = rollExpr('1d4+2');
   target.hp = Math.min(getStat(target,'maxHp'), back.total);
   target.ap = 0;   // back on their feet, but they act next round
   log(`${healer.name} drags ${target.name} back from the brink (${target.hp} HP).`, 'loot');
   renderAll();
 }
+/* ---------------------------- HELPING EACH OTHER ----------------------
+   Standing on the same tile lets characters hand over gear, spend a
+   consumable on someone else, or bind wounds. All of it is host-validated
+   the same way movement is. */
+function alliesHere(p){
+  return STATE.players.filter(o=>o!==p && o.alive && o.level===p.level && o.x===p.x && o.y===p.y);
+}
+// An item can be spent on an ally if it does something helpful — anything
+// that isn't purely damage aimed at an enemy.
+function isSupportItem(def){
+  if(!def || !def.effects || !def.effects.length) return false;
+  return def.effects.some(e=>['heal','cure','buff','ap','roll'].includes(e.kind));
+}
+function giveItem(fromP, itemIndex, toId){
+  const to = STATE.players.find(x=>x.id===toId);
+  const it = fromP.items[itemIndex];
+  if(!to || !it) return;
+  if(!alliesHere(fromP).includes(to)) return;
+  if(!hasAP(fromP)){ log(`${fromP.name} has no actions left to trade.`, 'system'); return; }
+  const def = findItemDef(it.id);
+  fromP.items.splice(itemIndex,1);
+  to.items.push({ id:it.id, usesLeft:it.usesLeft });
+  spendAP(fromP, 1, 'item');
+  playSfx('loot');
+  log(`${fromP.name} hands ${def?def.name:'an item'} to ${to.name}.`, 'loot');
+  renderAll();
+}
+function useItemOnAlly(fromP, itemIndex, toId){
+  const to = STATE.players.find(x=>x.id===toId);
+  const it = fromP.items[itemIndex];
+  if(!to || !it) return;
+  if(!alliesHere(fromP).includes(to)) return;
+  if(!hasAP(fromP)){ log(`${fromP.name} has no actions left.`, 'system'); return; }
+  const def = findItemDef(it.id);
+  if(!isSupportItem(def)) return;
+  // Effects land on the ally rather than the user.
+  const notes = applyEffects(def.effects, to, {});
+  if(it.usesLeft!==Infinity) it.usesLeft--;
+  fromP.items = fromP.items.filter(x=>x.usesLeft===Infinity || x.usesLeft>0);
+  spendAP(fromP, 1, 'item');
+  awardXp(fromP, 3, 'helped an ally');
+  playSfx('revive');
+  log(`${fromP.name} uses ${def.name} on ${to.name} — ${notes || 'no effect'}.`, 'loot');
+  renderAll();
+}
+/* Binding wounds: a slow, free way back from the brink so a run isn't over
+   just because the potions ran out. Not available mid-fight. */
+function restAction(){
+  const p = activePlayer();
+  if(!hasAP(p)) return;
+  if(isRealtime() && battleAt(p)){ log('Too dangerous to rest mid-fight.', 'system'); return; }
+  const maxHp = getStat(p,'maxHp');
+  if(p.hp >= maxHp){ log(`${p.name} is already at full health.`, 'system'); return; }
+  const heal = rollExpr('1d4+' + Math.max(1, charLevelOf(p)));
+  p.hp = Math.min(maxHp, p.hp + heal.total);
+  spendAP(p, 1, 'item');
+  playSfx('revive');
+  log(`${p.name} binds their wounds and recovers ${heal.total} HP.`, 'loot');
+  renderAll();
+}
+function healAlly(fromP, toId){
+  const to = STATE.players.find(x=>x.id===toId);
+  if(!to || !alliesHere(fromP).includes(to)) return;
+  if(!hasAP(fromP)) return;
+  const maxHp = getStat(to,'maxHp');
+  if(to.hp >= maxHp){ log(`${to.name} needs no patching up.`, 'system'); return; }
+  const heal = rollExpr('1d4+' + Math.max(1, charLevelOf(fromP)));
+  to.hp = Math.min(maxHp, to.hp + heal.total);
+  spendAP(fromP, 1, 'item');
+  awardXp(fromP, 3, 'tended an ally');
+  playSfx('revive');
+  log(`${fromP.name} patches up ${to.name} for ${heal.total} HP.`, 'loot');
+  renderAll();
+}
+
+function openShareModal(){
+  const p = activePlayer();
+  const allies = alliesHere(p);
+  const b = document.getElementById('modalBody');
+  if(!allies.length){
+    b.innerHTML = `<h2>🤝 Share</h2><div class="modal-sub">Nobody else is standing here.</div>
+      <div class="modal-actions"><button class="btn primary" id="shClose">Close</button></div>`;
+    document.getElementById('shClose').onclick = closeModal; openModal(); return;
+  }
+  const target = allies[0];
+  b.innerHTML = `<h2>🤝 Share with ${target.name}</h2>
+    <div class="modal-sub">Same tile, so you can hand things over or patch each other up. Each costs an action.</div>
+    ${allies.length>1 ? `<div class="pill-row" id="shWho" style="margin-bottom:.7rem;">
+      ${allies.map((a,i)=>`<span class="pill${i===0?' active':''}" data-who="${a.id}">${CLASS_DEFS[a.cls].icon} ${a.name}</span>`).join('')}
+    </div>` : ''}
+    <div class="card" style="margin-bottom:.8rem;">
+      <div class="cardtype">their condition</div>
+      <div class="cardname" id="shName">${target.name} — ${target.hp}/${getStat(target,'maxHp')} HP${target.downed?' (DOWN)':''}</div>
+      <div class="modal-actions" style="margin-top:.5rem;">
+        <button class="btn small primary" id="shHeal">✚ Bind their wounds</button>
+      </div>
+    </div>
+    <div class="subhead" style="font-family:'IBM Plex Mono',monospace;font-size:.7rem;color:var(--ink-faint);margin:.6rem 0 .4rem;">YOUR PACK</div>
+    <div class="choice-list" id="shItems"></div>
+    <div class="modal-actions"><button class="btn ghost" id="shClose">Close</button></div>`;
+
+  let targetId = target.id;
+  const renderItems = ()=>{
+    const list = document.getElementById('shItems');
+    const to = STATE.players.find(x=>x.id===targetId);
+    document.getElementById('shName').textContent =
+      `${to.name} — ${to.hp}/${getStat(to,'maxHp')} HP${to.downed?' (DOWN)':''}`;
+    if(!p.items.length){ list.innerHTML = '<div class="empty-note">Your pack is empty.</div>'; return; }
+    list.innerHTML = p.items.map((it,i)=>{
+      const def = findItemDef(it.id);
+      if(!def) return '';
+      return `<div class="card item-weapon">
+        <div class="cardtype">${def.type}</div>
+        <div class="cardicon">${def.icon||'📦'}</div>
+        <div class="cardname">${def.name}</div>
+        <div class="carddesc">${def.desc||''}</div>
+        <div class="modal-actions" style="margin-top:.5rem;">
+          <button class="btn small ghost" data-give="${i}">Give</button>
+          ${isSupportItem(def) ? `<button class="btn small primary" data-useon="${i}">Use on ${to.name}</button>` : ''}
+        </div></div>`;
+    }).join('');
+    list.querySelectorAll('[data-give]').forEach(btn=>btn.onclick=()=>{
+      actGive(parseInt(btn.dataset.give,10), targetId); closeModal();
+    });
+    list.querySelectorAll('[data-useon]').forEach(btn=>btn.onclick=()=>{
+      actUseOn(parseInt(btn.dataset.useon,10), targetId); closeModal();
+    });
+  };
+  const who = document.getElementById('shWho');
+  if(who) who.querySelectorAll('[data-who]').forEach(pill=>pill.onclick=()=>{
+    who.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+    pill.classList.add('active');
+    targetId = parseInt(pill.dataset.who,10);
+    renderItems();
+  });
+  document.getElementById('shHeal').onclick = ()=>{ actHealAlly(targetId); closeModal(); };
+  document.getElementById('shClose').onclick = closeModal;
+  renderItems();
+  openModal();
+}
+
 function partyWiped(){
   return STATE.players.filter(p=>p.alive && !p.downed).length===0;
 }
@@ -1184,10 +1628,14 @@ function isSoloParty(){ return STATE.config.control === 'solo'; }
 
 // Spend an action. Everything that costs AP funnels through here so items
 // that grant or refund actions work uniformly.
-function spendAP(p, n){
+function spendAP(p, n, kind){
+  if(isRealtime()){ setCooldown(p, kind||'move'); return; }
   p.ap = Math.max(0, (p.ap||0) - (n===undefined?1:n));
 }
-function hasAP(p){ return (p.ap||0) > 0; }
+function hasAP(p){
+  if(isRealtime()) return isReady(p);   // cooldowns replace the action pool
+  return (p.ap||0) > 0;
+}
 
 /* In solo-party mode the player drives every character, so they can switch
    to any party member that still has actions left. */
@@ -1306,6 +1754,7 @@ function bestDefaultRotation(type, x, y, needsOpenDir){
 
 function rotatePending(){
   if(!PENDING_PLACEMENT) return;
+  playSfx('tile_rotate');
   PENDING_PLACEMENT.rot = (PENDING_PLACEMENT.rot+1)%4;
   renderMap();
   renderTurnbar();
@@ -1331,6 +1780,8 @@ function confirmPlacement(){
   p.x = pp.nx; p.y = pp.ny;
   spendAP(p);
   STATE.tilesExploredThisLevel++;
+  awardXp(p, 2);
+  playSfx('tile_place');
   log(`${p.name} explores ${DIR_LABEL[pp.dir]} and places a ${TILE_DEFS[pp.type].label.toLowerCase()}.`, 'system');
   if(conflicts.length){
     log(`Its ${conflicts.map(d=>DIR_LABEL[d]).join(' and ')} side${conflicts.length>1?'s':''} butt${conflicts.length>1?'':'s'} against solid rock — no passage that way.`, 'system');
@@ -1354,6 +1805,7 @@ function tryMove(dir){
   const [nx,ny] = neighborCoord(p.x,p.y,dir);
   p.x = nx; p.y = ny;
   spendAP(p);
+  playSfx('step');
   log(`${p.name} moves ${DIR_LABEL[dir]}.`, 'system');
   renderAll();
 }
@@ -1392,6 +1844,7 @@ function useStairs(){
   p.x = 0; p.y = 0;
   spendAP(p);
 
+  playSfx('stairs');
   const others = playersOnFloor(fromLevel).length;
   log(`${p.name} takes the stairway to Level ${target}${fresh ? ` — a new ${STATE.mapType.toLowerCase()} unfolds` : ''}.`, 'system');
   if(others) log(`${others} of the party remain on Level ${fromLevel}.`, 'system');
@@ -1412,6 +1865,7 @@ function resolveEvent(tile){
     STATE.bossSpawned = true;
     tile.resolved = false;
     log(`A monstrous presence stirs ahead...`, 'combat');
+    if(isRealtime()){ startBattle(tile, 'warden', STATE.level); renderAll(); return; }
     renderAll();
     openCombatModal(tile);
     return;
@@ -1425,6 +1879,12 @@ function resolveEvent(tile){
     const enemyDef = pick(pool);
     tile.event = { kind:'enemy', enemyId:enemyDef.id, thenLoot: kind==='enemy_loot' };
     tile.resolved = false;
+    if(isRealtime()){
+      // No modal: the enemy holds the tile and anyone here can fight it.
+      startBattle(tile, enemyDef.id, STATE.level);
+      renderAll();
+      return;
+    }
     log(`A ${enemyDef.name} blocks the way!`, 'combat');
     renderAll();
     openCombatModal(tile);
@@ -1459,6 +1919,7 @@ function grantLoot(tile){
   const itemDef = weightedPick(CONTENT.items.map(d=>[d, d.rarity || 1]));
   p.items.push({ id:itemDef.id, usesLeft: normalizeUses(itemDef.uses) });
   tile.event = { kind:'loot', itemId:itemDef.id }; tile.resolved = true;
+  playSfx('loot');
   log(`${p.name} finds ${itemDef.name} ${itemDef.icon||'📦'}.`, 'loot');
   renderAll();
   showLootModal(itemDef);
@@ -1486,7 +1947,7 @@ let COMBAT = null;
 
 function openCombatModal(tile){
   const p = activePlayer();
-  const enemyDef = findEnemyDef(tile.event.enemyId);
+  const enemyDef = scaledEnemy(findEnemyDef(tile.event.enemyId), STATE.level);
   COMBAT = { tile, p, enemyHp: enemyDef.hp, enemyDef, log:[], stage:'intro', usedStars:false };
   renderCombatModal();
   openModal();
@@ -1632,9 +2093,11 @@ function makeBtn(text, cls, fn){
 
 function doCombatRound(){
   const { p, enemyDef } = COMBAT;
+  playSfx('dice');
   const result = playerAttackRoll(p);
   let text = result.text;
   COMBAT.enemyStatus = COMBAT.enemyStatus || {};
+  setTimeout(()=>playSfx(result.hit ? (result.mult>1?'crit':'hit') : 'miss'), 190);
 
   if(result.hit){
     const dmg = rollExpr(result.dmgDie);
@@ -1681,6 +2144,7 @@ function doCombatRound(){
   syncNow();
 
   if(COMBAT.enemyHp<=0){
+    playSfx('enemy_die');
     log(`${p.name} defeats the ${enemyDef.name}!`, 'combat');
   } else if(p.hp<=0){
     knockDown(p, 'to the enemy');
@@ -1691,6 +2155,7 @@ function finishCombat(won){
   const { p, tile, enemyDef } = COMBAT;
   if(won){
     p.trophies.push(enemyDef.id);
+    awardXp(p, xpValueOf(enemyDef), 'defeated the '+enemyDef.name);
     tile.resolved = true;
     closeModal();
     if(enemyDef.boss){
@@ -1726,13 +2191,15 @@ function openTrapModal(tile){
   `;
   const actions = document.getElementById('trapActions');
   actions.appendChild(makeBtn('Roll to Avoid', 'primary', ()=>{
+    playSfx('dice');
     const roll = rollDie(20) + Math.floor((getStat(p,'def')-10));
     const success = roll >= trap.dc;
     let txt = `Rolled ${roll} vs DC ${trap.dc} — `;
-    if(success){ txt += 'avoided cleanly.'; }
+    if(success){ txt += 'avoided cleanly.'; awardXp(p, 3); }
     else {
       const dmg = rollExpr(trap.dmg);
       p.hp = Math.max(0, p.hp - dmg.total);
+      playSfx('trap');
       txt += `caught! ${dmg.detail} damage.`;
       if(p.hp<=0) knockDown(p, 'to the trap');
     }
@@ -1844,6 +2311,8 @@ function closeModal(){ document.getElementById('modalRoot').classList.remove('op
 /* ---------------------------- END GAME ---------------------------- */
 function endGame(won, message){
   STATE.over = true;
+  stopAmbience();
+  playSfx(won ? 'victory' : 'defeat');
   document.getElementById('endTitle').textContent = won ? 'Victory in the Deep' : 'The Depths Claim You';
   document.getElementById('endTitle').style.color = won ? 'var(--gold)' : 'var(--blood-bright)';
   document.getElementById('endBody').textContent = message;
@@ -1887,6 +2356,8 @@ function renderTurnbar(){
   const actions = document.getElementById('turnActions');
 
   renderTurnClockOnly();
+
+  if(isRealtime() && !STATE.paused && !STATE.over){ renderRealtimeBar(hintEl, actions); return; }
 
   if(STATE.paused){
     hintEl.textContent = 'Game paused.';
@@ -1953,8 +2424,12 @@ function renderTurnbar(){
   // the run can always continue.
   const stranded = exits.length===0 && moves.length===0 && !(tile && tile.stairs);
   const downedHere = downedAlliesHere(p);
+  const mates = alliesHere(p);
+  const hurt = p.hp < getStat(p,'maxHp');
   actions.innerHTML = `
     ${downedHere.map(d=>`<button class="btn small danger" data-revive="${d.id}">✚ Revive ${d.name}</button>`).join('')}
+    ${mates.length ? '<button class="btn small ghost" id="shareBtn">🤝 Share</button>' : ''}
+    ${hurt ? '<button class="btn small ghost" id="restBtn">🩹 Rest</button>' : ''}
     ${tile && tile.stairs ? '<button class="btn small primary" id="stairsBtn">🪜 Take Stairs</button>' : ''}
     ${stranded ? '<button class="btn small danger" id="retreatBtn">↩ Retreat to Entrance</button>' : ''}
     <button class="btn small ghost" id="useItemBtn">Use Item</button>
@@ -1964,12 +2439,60 @@ function renderTurnbar(){
   actions.querySelectorAll('[data-revive]').forEach(btn=>{
     btn.onclick = ()=> actRevive(parseInt(btn.dataset.revive,10));
   });
+  const shb = document.getElementById('shareBtn');
+  if(shb) shb.onclick = actShare;
+  const rsb = document.getElementById('restBtn');
+  if(rsb) rsb.onclick = actRest;
   const pb = document.getElementById('pauseBtn');
   if(pb) pb.onclick = togglePause;
   if(tile && tile.stairs) document.getElementById('stairsBtn').onclick = actStairs;
   if(stranded) document.getElementById('retreatBtn').onclick = actRetreat;
   document.getElementById('useItemBtn').onclick = actItems;
   document.getElementById('endTurnBtn').onclick = actEndTurn;
+}
+
+/* Realtime action bar: no turn, just what this character can do right now. */
+function renderRealtimeBar(hintEl, actions){
+  const p = rtControlledPlayer();
+  if(!p){ hintEl.textContent = 'Waiting for a character…'; actions.innerHTML=''; return; }
+  const b = battleAt(p);
+  const ready = isReady(p);
+  const left = cooldownLeft(p);
+
+  let hint = `${p.name} · L${p.level}`;
+  if(p.downed) hint += ' — down, waiting for a revive';
+  else if(b) hint += ` — fighting ${findEnemyDef(b.enemyId).name} (${Math.max(0,b.hp)}/${b.maxHp})`;
+  else if(!ready) hint += ` — catching breath (${(left/1000).toFixed(1)}s)`;
+  else hint += ' — ready';
+  const others = STATE.players.filter(o=>o!==p && o.alive && o.level===p.level && o.x===p.x && o.y===p.y);
+  if(others.length) hint += ` · with ${others.map(o=>o.name).join(', ')}`;
+  const pct = ready ? 100 : Math.max(0, Math.round(100 - (left/COOLDOWN.attack)*100));
+  hintEl.innerHTML = hint + `<span class="cooldown-bar" style="display:block;width:120px;"><span style="width:${pct}%"></span></span>`;
+
+  const downedHere = downedAlliesHere(p);
+  const usable = p.items.map((it,i)=>({it,i,def:findItemDef(it.id)}))
+    .filter(x=>x.def && itemUsableIn(x.def, b ? 'combat' : 'explore'));
+
+  actions.innerHTML = `
+    ${b && !p.downed ? `<button class="btn small primary" id="rtAttack" ${ready?'':'disabled'}>⚔ Attack</button>` : ''}
+    ${downedHere.map(d=>`<button class="btn small danger" data-revive="${d.id}" ${ready?'':'disabled'}>✚ Revive ${d.name}</button>`).join('')}
+    ${usable.slice(0,3).map(x=>`<button class="btn small ghost" data-rtitem="${x.i}" ${ready?'':'disabled'}>${x.def.icon||'📦'} ${x.def.name}</button>`).join('')}
+    ${alliesHere(p).length ? `<button class="btn small ghost" id="shareBtn" ${ready?'':'disabled'}>🤝 Share</button>` : ''}
+    ${(!b && p.hp<getStat(p,'maxHp')) ? `<button class="btn small ghost" id="restBtn" ${ready?'':'disabled'}>🩹 Rest</button>` : ''}
+    <button class="btn small ghost" id="useItemBtn">Pack</button>
+    ${(!NET.enabled || NET.role==='host') ? '<button class="btn small ghost" id="pauseBtn">⏸</button>' : ''}
+  `;
+  const at = document.getElementById('rtAttack');
+  if(at) at.onclick = actAttack;
+  actions.querySelectorAll('[data-revive]').forEach(btn=>btn.onclick=()=>actRevive(parseInt(btn.dataset.revive,10)));
+  actions.querySelectorAll('[data-rtitem]').forEach(btn=>btn.onclick=()=>actRtItem(parseInt(btn.dataset.rtitem,10)));
+  const shb2 = document.getElementById('shareBtn');
+  if(shb2) shb2.onclick = actShare;
+  const rsb2 = document.getElementById('restBtn');
+  if(rsb2) rsb2.onclick = actRest;
+  document.getElementById('useItemBtn').onclick = actItems;
+  const pb = document.getElementById('pauseBtn');
+  if(pb) pb.onclick = togglePause;
 }
 
 function renderPlayerPanel(){
@@ -1996,13 +2519,22 @@ function renderPlayerPanel(){
     }).join('');
     wrap.innerHTML = `
       <div class="sheet-name">${isActive?'▶ ':''}${p.downed?'💀':CLASS_DEFS[p.cls].icon} ${p.name}${p.downed?' <span style="color:var(--blood-bright);font-size:.8rem;">DOWN</span>':''}</div>
-      <div class="sheet-class">${CLASS_DEFS[p.cls].name} — ${CLASS_DEFS[p.cls].tagline}</div>
+      <div class="sheet-class">Lv ${charLevelOf(p)} ${CLASS_DEFS[p.cls].name} — ${CLASS_DEFS[p.cls].tagline}</div>
       <div class="hpbar-wrap">
         <div class="hpbar-label"><span>HP</span><span>${Math.max(0,p.hp)}/${maxHp}</span></div>
         <div class="hpbar"><div class="hpbar-fill" style="width:${Math.max(0,p.hp/maxHp*100)}%"></div></div>
       </div>
+      <div class="hpbar-wrap">
+        <div class="hpbar-label"><span>XP</span><span>${xpToNext(p)} to Lv ${charLevelOf(p)+1}</span></div>
+        <div class="hpbar"><div class="hpbar-fill" style="width:${Math.round(xpProgress(p)*100)}%;
+          background:linear-gradient(90deg,#6b5a1f,var(--gold));"></div></div>
+      </div>
       <div class="status-chips">
-        <span class="chip">⚡ ${ap}/${apMax} actions</span>
+        ${isRealtime()
+          ? `<span class="chip">${isReady(p)?'⚡ ready':'⏳ '+(cooldownLeft(p)/1000).toFixed(1)+'s'}</span>`
+          : `<span class="chip">⚡ ${ap}/${apMax} actions</span>`}
+        <span class="chip">⚔ +${getStat(p,'atkMod')}</span>
+        <span class="chip">🛡 ${getStat(p,'def')}</span>
         ${p.statusEffects.poisoned>0?'<span class="chip">☠ poisoned</span>':''}
         ${buffChips}
       </div>
@@ -2018,7 +2550,7 @@ function renderPlayerPanel(){
         return `<span class="trophy" title="${e?e.name:id}">${TROPHY_ICONS[id]||'🏆'}</span>`;
       }).join('') : '<span class="empty-note">None yet.</span>'}</div>
     `;
-    if(isSoloParty() && canAct(p) && !isActive){
+    if((isSoloParty() || (isRealtime() && !NET.enabled)) && canAct(p) && !isActive){
       wrap.style.cursor = 'pointer';
       wrap.title = 'Take control of ' + p.name;
       wrap.onclick = ()=>actSwitch(idx);
@@ -2109,13 +2641,27 @@ function renderMap(){
       continue;
     }
     const img = document.createElement('img');
-    img.src = TILE_IMAGES[TILE_DEFS[t.type].img];
+    img.src = tileImage(TILE_DEFS[t.type].img);
     img.style.transform = `rotate(${t.rot*90}deg)`;
     cell.appendChild(img);
 
     if(t.stairs){
       const s = el('div','stairs-badge','🪜');
       cell.appendChild(s);
+    }
+
+    // Realtime: enemies live on the board rather than in a modal.
+    if(isRealtime() && STATE.battles){
+      const bt = STATE.battles[battleKey(viewedLevel(), t.x, t.y)];
+      if(bt){
+        const edef = findEnemyDef(bt.enemyId);
+        const badge = el('div','enemy-token', (edef && edef.icon) || '👾');
+        badge.title = `${edef?edef.name:'Enemy'} — ${Math.max(0,bt.hp)}/${bt.maxHp} HP`;
+        cell.appendChild(badge);
+        const bar = el('div','enemy-hp');
+        bar.innerHTML = `<span style="width:${Math.max(0,bt.hp/bt.maxHp*100)}%"></span>`;
+        cell.appendChild(bar);
+      }
     }
 
     const avatarLayer = el('div','avatar-layer');
@@ -2175,7 +2721,7 @@ function renderMap(){
     ghost.style.width = cs+'px';
     ghost.style.height = cs+'px';
     const img = document.createElement('img');
-    img.src = TILE_IMAGES[TILE_DEFS[pp.type].img];
+    img.src = tileImage(TILE_DEFS[pp.type].img);
     img.style.transform = `rotate(${pp.rot*90}deg)`;
     ghost.appendChild(img);
     ghost.appendChild(el('div','ghost-ring'));
@@ -2299,7 +2845,7 @@ function renderSetupScreen(){
 
   const modeRow = document.getElementById('modeRow');
   modeRow.innerHTML='';
-  [['coop','Co-op'],['competitive','Competitive']].forEach(([v,l])=>{
+  [['coop','Co-op (turns)'],['competitive','Competitive (turns)'],['realtime','Realtime — no turns']].forEach(([v,l])=>{
     const p = el('div','pill'+(SETUP.mode===v?' active':''), l);
     p.onclick=()=>{ SETUP.mode=v; renderSetupScreen(); };
     modeRow.appendChild(p);
@@ -2335,7 +2881,7 @@ function renderSetupScreen(){
     Object.entries(CLASS_DEFS).forEach(([cid,cdef])=>{
       const card = el('div','class-card'+(pl.cls===cid?' selected':''));
       card.innerHTML = `<div class="cicon">${cdef.icon}</div><div class="cname">${cdef.name}</div>
-        <div class="cstats"><span>HP ${cdef.maxHp}</span><span>DEF ${cdef.def}</span></div>
+        <div class="cstats"><span>HP ${cdef.maxHp}</span><span>DEF ${cdef.def}</span><span>+${cdef.hpPerLevel}HP/lv</span></div>
         <div class="cdesc">${cdef.desc}</div>`;
       card.onclick = ()=>{ pl.cls = cid; renderSetupScreen(); };
       grid.appendChild(card);
@@ -2399,11 +2945,27 @@ function renderCodex(tab){
       grid.appendChild(c);
     });
   } else if(tab==='tiles'){
+    const picker = el('div','card');
+    picker.style.gridColumn = '1 / -1';
+    picker.innerHTML = `<div class="cardtype">tile theme</div>
+      <div class="cardname" style="margin-bottom:.5rem;">Skin the dungeon</div>
+      <div class="pill-row" id="themeRow"></div>`;
+    grid.appendChild(picker);
+    const row = picker.querySelector('#themeRow');
+    allThemes().forEach(t=>{
+      const pill = el('div','pill'+(ACTIVE_THEME===t.id?' active':''), t.name);
+      pill.onclick = async ()=>{ await setTheme(t.id); renderCodex('tiles'); };
+      const sw = el('span');
+      sw.style.cssText = `display:inline-block;width:.7em;height:.7em;border-radius:2px;margin-right:.4em;
+        vertical-align:middle;background:${t.floor||'#fff'};border:1px solid ${t.wall||'#888'};`;
+      pill.prepend(sw);
+      row.appendChild(pill);
+    });
     Object.entries(TILE_DEFS).forEach(([tid,def])=>{
       const c = el('div','card');
       const openCount = def.edges.filter(Boolean).length;
       c.innerHTML = `<div class="cardtype">tile</div>
-        <img src="${TILE_IMAGES[def.img]}" style="width:100%;border-radius:4px;margin:.3em 0;">
+        <img src="${tileImage(def.img)}" style="width:100%;border-radius:4px;margin:.3em 0;">
         <div class="cardname">${def.label}</div>
         <div class="carddesc">${openCount} opening${openCount!==1?'s':''} — N:${def.edges[0]?'open':'wall'} E:${def.edges[1]?'open':'wall'} S:${def.edges[2]?'open':'wall'} W:${def.edges[3]?'open':'wall'}</div>`;
       grid.appendChild(c);
@@ -2577,6 +3139,17 @@ document.querySelectorAll('[data-nav]').forEach(btn=>{
   });
 });
 document.getElementById('titleStudioBtn').addEventListener('click', openStudio);
+document.getElementById('titleSoundBtn').addEventListener('click', ()=>{ audioUnlock(); openAudioSettings(); });
+document.getElementById('soundBtn').addEventListener('click', ()=>{ audioUnlock(); openAudioSettings(); });
+
+// Audio can't start until the player interacts, so the first gesture opens
+// the context and every button press gets a click afterwards.
+['pointerdown','keydown'].forEach(ev=>{
+  window.addEventListener(ev, ()=>{ if(!AUDIO.unlocked) audioUnlock(); }, { once:false, passive:true });
+});
+document.addEventListener('click', (e)=>{
+  if(e.target.closest('.btn, .pill, .choice-list .card, .entry-row')) playSfx('ui_click');
+}, true);
 // Reachable mid-run too, so you can tweak a draft and test it without
 // abandoning the game you're using to test it.
 document.getElementById('gameStudioBtn').addEventListener('click', openStudio);
@@ -2830,6 +3403,7 @@ const NET = {
   roster:[],            // [{peerId, name, cls, seat}]
   mySeat:null,
   objective:'endless',
+  mode:'coop',
   turnLimit:0,          // seconds per turn; 0 = untimed
   myName:'Host',
   generation:0,         // bumps on host migration
@@ -2861,7 +3435,8 @@ function serializeState(){
       trophies:p.trophies, statusEffects:p.statusEffects, buffs:(p.buffs||[]).map(b=>({
         stat:b.stat, amount:b.amount, roundsLeft: b.roundsLeft===Infinity ? -1 : b.roundsLeft
       })),
-      alive:p.alive, downed:!!p.downed, ap:p.ap, level:(p.level||1),
+      alive:p.alive, downed:!!p.downed, ap:p.ap, level:(p.level||1), readyAt:(p.readyAt||0),
+      xp:(p.xp||0), charLevel:charLevelOf(p),
       items:p.items.map(i=>({ id:i.id, usesLeft: i.usesLeft===Infinity ? -1 : i.usesLeft })),
     })),
     activeIndex:STATE.activeIndex, round:STATE.round, level:STATE.level,
@@ -2871,6 +3446,7 @@ function serializeState(){
     over:STATE.over, pendingClairvoyance:STATE.pendingClairvoyance || null,
     paused:STATE.paused, turnLimit:STATE.turnLimit, turnEndsAt:STATE.turnEndsAt,
     floors: STATE.floors || {},
+    realtime: !!STATE.realtime, battles: STATE.battles || {},
     pending: PENDING_PLACEMENT,
   };
 }
@@ -2886,6 +3462,7 @@ function applyState(snap){
     over:snap.over, pendingClairvoyance:snap.pendingClairvoyance,
     paused:snap.paused, turnLimit:snap.turnLimit, turnEndsAt:snap.turnEndsAt,
     floors: snap.floors || {},
+    realtime: !!snap.realtime, battles: snap.battles || {},
     zoom:keepZoom,
   };
   STATE.players.forEach(p=>{
@@ -2929,6 +3506,7 @@ function mySeatIndex(){ return NET.enabled ? NET.mySeat : STATE.activeIndex; }
 function iControl(){
   if(!NET.enabled) return true;
   if(!STATE) return false;
+  if(isRealtime()) return true;   // no turn order to wait for
   return NET.mySeat === STATE.activeIndex;
 }
 
@@ -2962,22 +3540,67 @@ function syncNow(){
 function sendIntent(intent){ netSend({ t:'intent', intent }); }
 // Every player-triggered action funnels through these so a client never
 // mutates state locally — it only ever asks the host.
-function actExplore(d){ if(NET.role==='client') return sendIntent({a:'explore', d}); tryExplore(d); }
-function actMove(d){    if(NET.role==='client') return sendIntent({a:'move', d});    tryMove(d); }
-function actRotate(){   if(NET.role==='client') return sendIntent({a:'rotate'});     rotatePending(); }
-function actPlace(){    if(NET.role==='client') return sendIntent({a:'place'});      confirmPlacement(); }
+function actExplore(d){ if(NET.role==='client') return sendIntent({a:'explore', d}); focusMine(); tryExplore(d); }
+function actMove(d){    if(NET.role==='client') return sendIntent({a:'move', d});    focusMine(); tryMove(d); }
+function actRotate(){   if(NET.role==='client') return sendIntent({a:'rotate'});     focusMine(); rotatePending(); }
+function actPlace(){    if(NET.role==='client') return sendIntent({a:'place'});      focusMine(); confirmPlacement(); }
 function actEndTurn(){  if(NET.role==='client') return sendIntent({a:'endTurn'});    nextTurn(); }
 function actStairs(){   if(NET.role==='client') return sendIntent({a:'stairs'});     useStairs(); }
 function actRetreat(){  if(NET.role==='client') return sendIntent({a:'retreat'});    retreatToEntrance(); }
 function actItems(){    if(NET.role==='client') return sendIntent({a:'items'});      openItemModal(); }
 function actSwitch(i){  if(NET.role==='client') return sendIntent({a:'switch', i});  switchToPlayer(i); }
-function actRevive(i){  if(NET.role==='client') return sendIntent({a:'revive', i});  reviveAlly(i); }
+function actRevive(i){  if(NET.role==='client') return sendIntent({a:'revive', i});  focusMine(); reviveAlly(i); }
+function actRest(){     if(NET.role==='client') return sendIntent({a:'rest'});         focusMine(); restAction(); }
+function actShare(){    if(NET.role==='client') return sendIntent({a:'share'});        focusMine(); openShareModal(); }
+function actGive(i,to){ if(NET.role==='client') return sendIntent({a:'give', i, to});  focusMine(); giveItem(activePlayer(), i, to); }
+function actUseOn(i,to){if(NET.role==='client') return sendIntent({a:'useon', i, to}); focusMine(); useItemOnAlly(activePlayer(), i, to); }
+function actHealAlly(to){if(NET.role==='client') return sendIntent({a:'healally', to}); focusMine(); healAlly(activePlayer(), to); }
+function actAttack(){   if(NET.role==='client') return sendIntent({a:'attack'});      focusMine(); rtAttack(); }
+function actRtItem(i){  if(NET.role==='client') return sendIntent({a:'rtitem', i});   focusMine(); rtUseItem(i); }
+/* In realtime the local player drives their own character, so before any
+   local action we point the shared cursor at them. */
+function focusMine(){
+  if(!isRealtime()) return;
+  const mine = rtControlledPlayer();
+  if(!mine) return;
+  const idx = STATE.players.indexOf(mine);
+  if(idx>-1 && idx!==STATE.activeIndex){ STATE.activeIndex = idx; syncFloorToActive(); }
+}
 
 function applyIntent(intent, seat){
   if(!STATE || STATE.over) return;
   // Pausing isn't a turn action — anyone at the table may call a halt.
   if(intent.a==='pause'){ togglePause(); syncNow(); return; }
   if(STATE.paused) return;
+  if(isRealtime()){
+    // No turns: a seat may act for its own character whenever its cooldown
+    // has elapsed. Point activeIndex at them so the shared rules code
+    // (which reads activePlayer()) operates on the right character.
+    if(seat===null || seat===undefined) return;
+    const target = STATE.players[seat];
+    if(!target || !rtCanAct(target)) return;
+    STATE.activeIndex = seat;
+    syncFloorToActive();
+    switch(intent.a){
+      case 'explore': tryExplore(intent.d); break;
+      case 'move':    tryMove(intent.d); break;
+      case 'rotate':  rotatePending(); break;
+      case 'place':   confirmPlacement(); break;
+      case 'stairs':  useStairs(); break;
+      case 'retreat': retreatToEntrance(); break;
+      case 'revive':  reviveAlly(intent.i); break;
+      case 'rest':    restAction(); break;
+      case 'share':   openShareModal(); break;
+      case 'give':    giveItem(activePlayer(), intent.i, intent.to); break;
+      case 'useon':   useItemOnAlly(activePlayer(), intent.i, intent.to); break;
+      case 'healally':healAlly(activePlayer(), intent.to); break;
+      case 'attack':  rtAttack(); break;
+      case 'rtitem':  rtUseItem(intent.i); break;
+      case 'items':   openItemModal(); break;
+    }
+    syncNow();
+    return;
+  }
   // Authority check: only the seat whose turn it is may act.
   if(seat !== STATE.activeIndex) return;
   switch(intent.a){
@@ -2991,6 +3614,11 @@ function applyIntent(intent, seat){
     case 'items':   openItemModal(); break;
     case 'switch':  switchToPlayer(intent.i); break;
     case 'revive':  reviveAlly(intent.i); break;
+    case 'rest':    restAction(); break;
+    case 'share':   openShareModal(); break;
+    case 'give':    giveItem(activePlayer(), intent.i, intent.to); break;
+    case 'useon':   useItemOnAlly(activePlayer(), intent.i, intent.to); break;
+    case 'healally':healAlly(activePlayer(), intent.to); break;
   }
   syncNow();
 }
@@ -3038,7 +3666,7 @@ function renderRoster(){
 function pushLobby(){
   if(NET.role!=='host') return;
   netBroadcast({ t:'lobby', roster:NET.roster, objective:NET.objective,
-                 turnLimit:NET.turnLimit, generation:NET.generation });
+                 turnLimit:NET.turnLimit, mode:NET.mode||'coop', generation:NET.generation });
 }
 function netStatus(msg){
   const n = document.getElementById('netStatus');
@@ -3066,6 +3694,7 @@ function hostRoom(){
   netStatus('Opening room…');
   renderRoster();
   renderNetObjective();
+  renderNetMode();
   renderNetTimer();
 
   NET.peer = new Peer(roomPeerId(NET.roomCode, NET.generation));
@@ -3151,7 +3780,7 @@ function handleHostMessage(conn, msg){
         hp: CLASS_DEFS[cls].maxHp, def: CLASS_DEFS[cls].def,
         x:0, y:0, level: spawnLevel,
         items:[], trophies:[], statusEffects:{}, buffs:[],
-        alive:true, downed:false, ap:0,
+        alive:true, downed:false, ap:0, xp:0, charLevel:1,
       };
       fresh.ap = getStat(fresh,'apMax');
       STATE.players.push(fresh);
@@ -3180,7 +3809,7 @@ function hostStartGame(){
   newGame({
     players: NET.roster.map(r=>({ name:r.name, cls:r.cls })),
     control: 'hotseat',       // each seat is a separate human
-    mode: 'coop',
+    mode: NET.mode || 'coop',
     objective: NET.objective,
     turnLimit: NET.turnLimit,
   });
@@ -3293,6 +3922,7 @@ function handleClientMessage(msg){
   if(msg.t==='lobby'){
     NET.roster = msg.roster; NET.objective = msg.objective;
     if(msg.turnLimit!==undefined) NET.turnLimit = msg.turnLimit;
+    if(msg.mode!==undefined) NET.mode = msg.mode;
     if(msg.generation!==undefined) NET.generation = msg.generation;
     renderRoster(); return;
   }
@@ -3384,6 +4014,18 @@ function beginHostMigration(){
 }
 
 /* ---------- shared UI bits ---------- */
+function renderNetMode(){
+  const row = document.getElementById('netModeRow');
+  if(!row) return;
+  row.innerHTML='';
+  [['coop','Turn based'],['realtime','Realtime — everyone at once']].forEach(([v,l])=>{
+    const pill = el('div','pill'+((NET.mode||'coop')===v?' active':''), l);
+    pill.onclick = ()=>{ NET.mode = v; renderNetMode(); renderNetTimer(); pushLobby(); };
+    row.appendChild(pill);
+  });
+  const t = document.getElementById('netTimerRow');
+  if(t && t.parentElement) t.parentElement.style.display = (NET.mode==='realtime') ? 'none' : '';
+}
 function renderNetTimer(){
   const row = document.getElementById('netTimerRow');
   if(!row) return;
@@ -3487,7 +4129,7 @@ let STUDIO_TAB = 'items';
 let STUDIO_EDIT = null;   // { kind, index } or null
 
 function blankStudio(){
-  return { name:'', version:'1.0.0', author:'', items:[], enemies:[], traps:[] };
+  return { name:'', version:'1.0.0', author:'', items:[], enemies:[], traps:[], themes:[] };
 }
 function loadStudioDraft(){
   try{
@@ -3512,11 +4154,22 @@ function studioPack(){
   if(STUDIO.items.length)   pack.items   = STUDIO.items;
   if(STUDIO.enemies.length) pack.enemies = STUDIO.enemies;
   if(STUDIO.traps.length)   pack.traps   = STUDIO.traps;
+  if((STUDIO.themes||[]).length) pack.themes = STUDIO.themes.map(t=>{
+    const out = Object.assign({}, t);
+    if(!out.floorTexture) delete out.floorTexture;
+    if(!out.floorTextureB) delete out.floorTextureB;
+    if(!out.mask || out.mask==='none') delete out.mask;
+    if(!out.tiles) delete out.tiles;
+    return out;
+  });
   return pack;
 }
 
 /* ---------- blank entries ---------- */
 function newEntry(kind){
+  if(kind==='themes') return { id:'', name:'', floor:'#d9d6bd', floorB:'#8d8a72',
+    wall:'#5f6f52', wallShade:'#1e2a1c', outline:'#0a0f0a',
+    floorTexture:'', floorTextureB:'', mask:'none', tiles:null };
   if(kind==='items') return { id:'', name:'', type:'consumable', icon:'✨', cls:null,
     uses:1, rarity:1, usableIn:['combat','explore'], desc:'', effects:[], onHit:[] };
   if(kind==='enemies') return { id:'', name:'', hp:10, def:11, dmg:'1d6', icon:'👾',
@@ -3528,8 +4181,8 @@ function newEntry(kind){
 function studioIssues(){
   const issues = [];
   const seen = new Set();
-  ['items','enemies','traps'].forEach(kind=>{
-    STUDIO[kind].forEach((e,i)=>{
+  ['items','enemies','traps','themes'].forEach(kind=>{
+    (STUDIO[kind]||[]).forEach((e,i)=>{
       const who = e.name || (kind.slice(0,-1)+' '+(i+1));
       if(!e.name) issues.push(`${kind}[${i}] needs a name`);
       const id = e.id || slugify(e.name, '');
@@ -3548,6 +4201,12 @@ function studioIssues(){
         issues.push(`${who}: damage must be dice like 1d8`);
       if(kind==='traps' && !/^\d+(d\d+)?([+-]\d+)?$/.test(String(e.dmg||'').trim()))
         issues.push(`${who}: damage must be dice like 1d6`);
+      if(kind==='themes'){
+        ['floor','wall','wallShade','outline'].forEach(c=>{
+          if(!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(e[c]||'')))
+            issues.push(`${who}: ${c} must be a hex colour`);
+        });
+      }
     });
   });
   return issues;
@@ -3571,7 +4230,7 @@ function renderStudioFeedback(msg, good){
   if(!box) return;
   if(msg){ box.innerHTML = `<span style="color:${good?'var(--verdigris)':'var(--blood-bright)'}">${msg}</span>`; return; }
   const issues = studioIssues();
-  const counts = `${STUDIO.items.length} item(s) · ${STUDIO.enemies.length} enemy(ies) · ${STUDIO.traps.length} trap(s)`;
+  const counts = `${STUDIO.items.length} item(s) · ${STUDIO.enemies.length} enemy(ies) · ${STUDIO.traps.length} trap(s) · ${(STUDIO.themes||[]).length} theme(s)`;
   box.innerHTML = issues.length
     ? `<span style="color:var(--ember-bright)">⚠️ ${issues.length} thing(s) to fix: ${issues.slice(0,3).join('; ')}${issues.length>3?'…':''}</span>`
     : `<span style="color:var(--ink-faint)">${counts} — ready to export.</span>`;
@@ -3585,12 +4244,15 @@ function renderStudioList(){
     <div class="subhead">${STUDIO_TAB} in this module</div>
     ${list.length ? list.map((e,i)=>`
       <div class="entry-row">
-        <span class="er-icon">${e.icon||'📦'}</span>
+        <span class="er-icon">${STUDIO_TAB==='themes'
+          ? `<span style="display:inline-block;width:1em;height:1em;border-radius:3px;background:${e.floor};border:2px solid ${e.wall};"></span>`
+          : (e.icon||'📦')}</span>
         <div class="er-body">
           <div class="er-name">${e.name||'<i>unnamed</i>'}</div>
           <div class="er-meta">${e.id||slugify(e.name,'no-id')}${
             STUDIO_TAB==='items' ? ' · '+((e.effects||[]).length+(e.onHit||[]).length)+' effect(s)'
             : STUDIO_TAB==='enemies' ? ' · '+e.hp+' HP · '+e.dmg
+            : STUDIO_TAB==='themes' ? ' · '+e.floor+' / '+e.wall
             : ' · DC '+e.dc+' · '+e.dmg}</div>
         </div>
         <button class="btn small ghost" data-edit="${i}">Edit</button>
@@ -3681,6 +4343,46 @@ function renderStudioEditor(){
       </div>
     </div>
     <div class="subhead">preview</div><div id="stPreview"></div>`;
+  } else if(kind==='themes'){
+    body += `
+      <div class="field-row">
+        <label>Floor A<input type="color" id="fFloor" value="${e.floor}"></label>
+        <label>Floor B<input type="color" id="fFloorB" value="${e.floorB||'#8d8a72'}"></label>
+        <label>Wall<input type="color" id="fWall" value="${e.wall}"></label>
+        <label>Wall shadow<input type="color" id="fWallShade" value="${e.wallShade}"></label>
+        <label>Outline<input type="color" id="fOutline" value="${e.outline}"></label>
+      </div>
+
+      <div class="subhead" style="margin-top:.6rem;">floor layers</div>
+      <div class="field-row">
+        <label>Texture A (image, tiled)
+          <input type="file" id="fTexFile" accept="image/*">
+          ${e.floorTexture ? '<span class="uses-badge">attached — <a href="#" id="fTexClear" style="color:var(--ember-bright)">remove</a></span>' : ''}
+        </label>
+        <label>Texture B (image, tiled)
+          <input type="file" id="fTexFileB" accept="image/*">
+          ${e.floorTextureB ? '<span class="uses-badge">attached — <a href="#" id="fTexClearB" style="color:var(--ember-bright)">remove</a></span>' : ''}
+        </label>
+      </div>
+
+      <div class="subhead">blend mask — white keeps A, black swaps to B</div>
+      <div class="pill-row" id="fMaskRow" style="margin-bottom:.5rem;">
+        ${MASK_IDS.map(m=>`<span class="pill${e.mask===m?' active':''}" data-mask="${m}">${m}</span>`).join('')}
+      </div>
+      <label>…or upload your own black &amp; white mask
+        <input type="file" id="fMaskFile" accept="image/*">
+        ${(e.mask||'').startsWith('data:') ? '<span class="uses-badge">custom mask — <a href="#" id="fMaskClear" style="color:var(--ember-bright)">remove</a></span>' : ''}
+      </label>
+      <div id="fMaskPrev" style="margin:.4rem 0;"></div>
+      <div class="subhead" style="margin-top:.8rem;">custom tile art (optional — overrides the recolour)</div>
+      <div class="field-row" id="fTileSlots">
+        ${TILE_ORDER.map(n=>`<label style="min-width:110px;">${n}
+          <input type="file" accept="image/*" data-tileslot="${n}">
+          ${(e.tiles&&e.tiles[n])?'<span class="uses-badge">custom</span>':''}
+        </label>`).join('')}
+      </div>
+    </div>
+    <div class="subhead">preview</div><div id="stPreview"></div>`;
   } else {
     body += `
       <div class="field-row">
@@ -3696,6 +4398,7 @@ function renderStudioEditor(){
       <button class="btn small primary" id="fDone">Done</button>
       ${kind==='items' && STATE && !STATE.over ? '<button class="btn small ghost" id="fGive">Give to active character</button>' : ''}
       ${kind==='enemies' && STATE && !STATE.over ? '<button class="btn small ghost" id="fFight">Fight it now</button>' : ''}
+      ${kind==='themes' ? '<button class="btn small ghost" id="fApply">Apply this theme</button>' : ''}
     </div>`;
   box.innerHTML = body;
 
@@ -3710,6 +4413,58 @@ function renderStudioEditor(){
   if(give) give.onclick = ()=>{ commit(); studioGiveItem(e); };
   const fight = document.getElementById('fFight');
   if(fight) fight.onclick = ()=>{ commit(); studioFightEnemy(e); };
+  const apply = document.getElementById('fApply');
+  if(apply) apply.onclick = async ()=>{
+    commit();
+    if(!studioInstall(true)) return;
+    delete THEMED_CACHE[e.id];
+    await setTheme(e.id);
+    renderStudioFeedback('✅ Theme applied — the board is using it now.', true);
+  };
+  // texture + per-tile uploads
+  const fileInto = (inputId, prop)=>{
+    const inp = document.getElementById(inputId);
+    if(!inp) return;
+    inp.onchange = (ev)=>{
+      const f = ev.target.files && ev.target.files[0]; if(!f) return;
+      const r = new FileReader();
+      r.onload = ()=>{ e[prop] = String(r.result); delete THEMED_CACHE[e.id]; saveStudioDraft(); renderStudioEditor(); };
+      r.readAsDataURL(f);
+    };
+  };
+  fileInto('fTexFile','floorTexture');
+  fileInto('fTexFileB','floorTextureB');
+  fileInto('fMaskFile','mask');
+  const clearInto = (id, prop, blank)=>{
+    const a = document.getElementById(id);
+    if(a) a.onclick = (ev)=>{ ev.preventDefault(); e[prop]=blank; delete THEMED_CACHE[e.id]; saveStudioDraft(); renderStudioEditor(); };
+  };
+  clearInto('fTexClear','floorTexture','');
+  clearInto('fTexClearB','floorTextureB','');
+  clearInto('fMaskClear','mask','none');
+  box.querySelectorAll('[data-mask]').forEach(pill=>{
+    pill.onclick = ()=>{ e.mask = pill.dataset.mask; delete THEMED_CACHE[e.id]; saveStudioDraft(); renderStudioEditor(); };
+  });
+  // show the mask itself so it's obvious what's being stencilled
+  const mp = document.getElementById('fMaskPrev');
+  if(mp){
+    const src = maskSource(e);
+    mp.innerHTML = src
+      ? `<img src="${src}" style="width:96px;height:96px;image-rendering:pixelated;border:1px solid var(--line);border-radius:3px;">`
+      : '<span class="empty-note">No mask — floor uses layer A only.</span>';
+  }
+  box.querySelectorAll('[data-tileslot]').forEach(inp=>{
+    inp.onchange = (ev)=>{
+      const f = ev.target.files && ev.target.files[0]; if(!f) return;
+      const r = new FileReader();
+      r.onload = ()=>{
+        e.tiles = e.tiles || {};
+        e.tiles[inp.dataset.tileslot] = String(r.result);
+        saveStudioDraft(); renderStudioEditor();
+      };
+      r.readAsDataURL(f);
+    };
+  });
   renderStudioPreview(e, kind);
 }
 
@@ -3792,6 +4547,12 @@ function readEditorInto(e, kind){
     e.dmg = val('fDmg')||'1d6'; e.flavor = val('fFlavor')||'';
     const sp = val('fSpecial'); if(sp) e.special = sp; else delete e.special;
     e.boss = checked('fBoss');
+  } else if(kind==='themes'){
+    e.floor = val('fFloor')||'#ffffff';
+    e.floorB = val('fFloorB')||e.floor;
+    e.wall = val('fWall')||'#808080';
+    e.wallShade = val('fWallShade')||'#000000';
+    e.outline = val('fOutline')||'#000000';
   } else {
     e.dmg = val('fDmg')||'1d6'; e.dc = Number(val('fDc'))||12;
     e.flavor = val('fFlavor')||'';
@@ -3822,6 +4583,23 @@ function renderStudioPreview(e, kind){
       <div class="cardname">${e.name||'Unnamed'}</div>
       <div class="cardstats"><span>HP ${e.hp}</span><span>DEF ${e.def}</span><span>DMG ${e.dmg}</span></div>
       <div class="carddesc">${e.flavor||''}${e.special?'<br><i>Special: '+e.special+'</i>':''}</div></div>`;
+  } else if(kind==='themes'){
+    box.innerHTML = `<div class="card"><div class="cardtype">theme preview</div>
+      <div class="cardname">${e.name||'Unnamed theme'}</div>
+      <div id="themePrevTiles" style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;max-width:300px;margin:.5rem 0;"></div>
+      <div class="carddesc">Recoloured from the shipped art, so every doorway and bevel stays put.</div></div>`;
+    (async ()=>{
+      if(!TILE_BASE_READY) await loadBaseTiles();
+      const texData  = await imageDataFrom(e.floorTexture);
+      const texDataB = await imageDataFrom(e.floorTextureB);
+      const maskData = await imageDataFrom(maskSource(e));
+      const host = document.getElementById('themePrevTiles');
+      if(!host) return;
+      host.innerHTML = ['Fourway','Hallway','Corner','Threeway','Dead_End','Base_tile'].map(n=>{
+        const src = (e.tiles && e.tiles[n]) ? e.tiles[n] : recolorTile(n, e, texData, texDataB, maskData);
+        return `<img src="${src}" style="width:100%;display:block;">`;
+      }).join('');
+    })();
   } else {
     box.innerHTML = `<div class="card trap">
       <div class="cardtype">trap</div>
@@ -3883,13 +4661,475 @@ function studioImport(file){
       STUDIO = Object.assign(blankStudio(), {
         name:pack.name||'', version:pack.version||'1.0.0', author:pack.author||'',
         items:(pack.items||[]).map(i=>Object.assign(i,{uses: i.uses===undefined?-1:i.uses})),
-        enemies:pack.enemies||[], traps:pack.traps||[],
+        enemies:pack.enemies||[], traps:pack.traps||[], themes:pack.themes||[],
       });
       STUDIO_EDIT = null; saveStudioDraft(); renderStudio();
       renderStudioFeedback('✅ Imported — edit and re-export as you like.', true);
     }catch(err){ renderStudioFeedback('❌ Not valid module JSON: '+err.message, false); }
   };
   reader.readAsText(file);
+}
+
+/* ======================================================================
+   AUDIO
+   ----------------------------------------------------------------------
+   Every sound is synthesised with WebAudio at runtime. That keeps the game
+   a single hostable file with no asset downloads, and means a sound can be
+   retuned by editing numbers rather than re-recording. Modules may still
+   supply real audio samples to override any cue.
+
+   Browsers won't start audio without a gesture, so the context is created
+   lazily on the first interaction and everything before that is a no-op.
+   ====================================================================== */
+const AUDIO = {
+  ctx:null, master:null, sfxBus:null, musicBus:null,
+  enabled:true, unlocked:false,
+  vol:{ master:0.7, sfx:0.9, music:0.35 },
+  custom:{},        // id -> AudioBuffer supplied by a module
+  ambience:null,
+};
+const AUDIO_KEY = 'depths-and-spires:audio:v1';
+
+function audioLoadPrefs(){
+  try{
+    const raw = localStorage.getItem(AUDIO_KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      if(typeof p.enabled==='boolean') AUDIO.enabled = p.enabled;
+      if(p.vol) Object.assign(AUDIO.vol, p.vol);
+    }
+  }catch(err){}
+}
+function audioSavePrefs(){
+  try{ localStorage.setItem(AUDIO_KEY, JSON.stringify({ enabled:AUDIO.enabled, vol:AUDIO.vol })); }catch(err){}
+}
+function audioEnsure(){
+  if(AUDIO.ctx) return AUDIO.ctx;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx) return null;
+  AUDIO.ctx = new Ctx();
+  AUDIO.master = AUDIO.ctx.createGain();
+  AUDIO.sfxBus = AUDIO.ctx.createGain();
+  AUDIO.musicBus = AUDIO.ctx.createGain();
+  AUDIO.sfxBus.connect(AUDIO.master);
+  AUDIO.musicBus.connect(AUDIO.master);
+  AUDIO.master.connect(AUDIO.ctx.destination);
+  audioApplyVolumes();
+  return AUDIO.ctx;
+}
+function audioApplyVolumes(){
+  if(!AUDIO.ctx) return;
+  const m = AUDIO.enabled ? AUDIO.vol.master : 0;
+  AUDIO.master.gain.setTargetAtTime(m, AUDIO.ctx.currentTime, 0.02);
+  AUDIO.sfxBus.gain.setTargetAtTime(AUDIO.vol.sfx, AUDIO.ctx.currentTime, 0.02);
+  AUDIO.musicBus.gain.setTargetAtTime(AUDIO.vol.music, AUDIO.ctx.currentTime, 0.02);
+}
+function audioUnlock(){
+  const ctx = audioEnsure();
+  if(!ctx) return;
+  if(ctx.state==='suspended') ctx.resume();
+  AUDIO.unlocked = true;
+}
+
+/* ---------- tiny synth helpers ---------- */
+function tone(opts){
+  const ctx = AUDIO.ctx; if(!ctx || !AUDIO.enabled) return;
+  const t0 = ctx.currentTime + (opts.delay||0);
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = opts.type || 'sine';
+  osc.frequency.setValueAtTime(opts.freq, t0);
+  if(opts.to) osc.frequency.exponentialRampToValueAtTime(Math.max(1,opts.to), t0 + (opts.dur||0.2));
+  const peak = (opts.gain===undefined?0.25:opts.gain);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(peak, t0 + (opts.attack||0.008));
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + (opts.dur||0.2));
+  let node = osc;
+  if(opts.filter){
+    const f = ctx.createBiquadFilter();
+    f.type = opts.filter.type || 'lowpass';
+    f.frequency.setValueAtTime(opts.filter.freq || 1200, t0);
+    node.connect(f); f.connect(gain);
+  } else node.connect(gain);
+  gain.connect(opts.bus || AUDIO.sfxBus);
+  osc.start(t0); osc.stop(t0 + (opts.dur||0.2) + 0.05);
+}
+function noiseBurst(opts){
+  const ctx = AUDIO.ctx; if(!ctx || !AUDIO.enabled) return;
+  const t0 = ctx.currentTime + (opts.delay||0);
+  const dur = opts.dur||0.18;
+  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate*dur), ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * (1 - i/data.length);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const f = ctx.createBiquadFilter();
+  f.type = opts.type||'bandpass';
+  f.frequency.setValueAtTime(opts.freq||900, t0);
+  if(opts.to) f.frequency.exponentialRampToValueAtTime(Math.max(60,opts.to), t0+dur);
+  f.Q.value = opts.q||1.2;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(opts.gain===undefined?0.3:opts.gain, t0);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  src.connect(f); f.connect(gain); gain.connect(opts.bus||AUDIO.sfxBus);
+  src.start(t0); src.stop(t0+dur+0.02);
+}
+
+/* ---------- the cue library ---------- */
+const SFX = {
+  ui_click:   ()=> tone({freq:520, to:420, dur:0.06, type:'triangle', gain:0.10}),
+  ui_back:    ()=> tone({freq:300, to:220, dur:0.09, type:'triangle', gain:0.10}),
+  tile_rotate:()=> tone({freq:680, to:900, dur:0.07, type:'square', gain:0.07}),
+  tile_place: ()=>{ noiseBurst({freq:380, to:120, dur:0.22, gain:0.34, type:'lowpass'});
+                    tone({freq:120, to:60, dur:0.24, type:'sine', gain:0.28}); },
+  step:       ()=> noiseBurst({freq:520, to:240, dur:0.10, gain:0.14, type:'lowpass'}),
+  door:       ()=>{ tone({freq:180, to:90, dur:0.3, type:'sawtooth', gain:0.12, filter:{freq:700}});
+                    noiseBurst({freq:300, dur:0.25, gain:0.10, type:'lowpass', delay:0.03}); },
+  dice:       ()=>{ for(let i=0;i<5;i++) noiseBurst({freq:1800+Math.random()*900, dur:0.05,
+                      gain:0.13, delay:i*0.045, q:3}); },
+  hit:        ()=>{ noiseBurst({freq:1400, to:200, dur:0.14, gain:0.34});
+                    tone({freq:190, to:70, dur:0.16, type:'square', gain:0.20}); },
+  crit:       ()=>{ noiseBurst({freq:2200, to:300, dur:0.2, gain:0.4});
+                    tone({freq:300, to:900, dur:0.22, type:'sawtooth', gain:0.2}); },
+  miss:       ()=> noiseBurst({freq:1100, to:2600, dur:0.16, gain:0.16, q:0.8}),
+  hurt:       ()=>{ tone({freq:260, to:110, dur:0.26, type:'sawtooth', gain:0.24, filter:{freq:900}}); },
+  enemy_die:  ()=>{ tone({freq:220, to:60, dur:0.5, type:'sawtooth', gain:0.22, filter:{freq:700}});
+                    noiseBurst({freq:600, to:100, dur:0.45, gain:0.2, type:'lowpass', delay:0.03}); },
+  loot:       ()=>{ [660,880,1320].forEach((f,i)=> tone({freq:f, dur:0.18, type:'triangle', gain:0.16, delay:i*0.07})); },
+  trap:       ()=>{ noiseBurst({freq:220, to:900, dur:0.3, gain:0.3, q:2});
+                    tone({freq:90, dur:0.3, type:'square', gain:0.16}); },
+  down:       ()=>{ [400,300,200,120].forEach((f,i)=> tone({freq:f, dur:0.3, type:'sine', gain:0.2, delay:i*0.1})); },
+  revive:     ()=>{ [220,330,440,660].forEach((f,i)=> tone({freq:f, dur:0.26, type:'triangle', gain:0.18, delay:i*0.08})); },
+  stairs:     ()=>{ tone({freq:520, to:130, dur:0.7, type:'sine', gain:0.2, filter:{freq:1500}});
+                    noiseBurst({freq:900, to:200, dur:0.6, gain:0.12, type:'lowpass'}); },
+  battle:     ()=>{ tone({freq:150, to:300, dur:0.35, type:'sawtooth', gain:0.2, filter:{freq:800}});
+                    noiseBurst({freq:400, dur:0.3, gain:0.16, type:'lowpass'}); },
+  victory:    ()=>{ [523,659,784,1047].forEach((f,i)=> tone({freq:f, dur:0.5, type:'triangle', gain:0.2, delay:i*0.13})); },
+  defeat:     ()=>{ [392,330,262,196].forEach((f,i)=> tone({freq:f, dur:0.6, type:'sine', gain:0.2, delay:i*0.18})); },
+  join:       ()=> tone({freq:440, to:660, dur:0.2, type:'triangle', gain:0.14}),
+  error:      ()=> tone({freq:160, to:120, dur:0.18, type:'square', gain:0.14}),
+};
+function playSfx(name){
+  if(!AUDIO.enabled) return;
+  if(!AUDIO.ctx){ if(!AUDIO.unlocked) return; audioEnsure(); }
+  try{
+    if(AUDIO.custom[name]){        // module-supplied sample wins
+      const src = AUDIO.ctx.createBufferSource();
+      src.buffer = AUDIO.custom[name];
+      src.connect(AUDIO.sfxBus); src.start();
+      return;
+    }
+    const fn = SFX[name];
+    if(fn) fn();
+  }catch(err){}
+}
+
+/* ---------- ambience: a slow drone with occasional drips ---------- */
+function startAmbience(){
+  const ctx = audioEnsure();
+  if(!ctx || AUDIO.ambience || !AUDIO.enabled) return;
+  const g = ctx.createGain(); g.gain.value = 0.12; g.connect(AUDIO.musicBus);
+  const filt = ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=320; filt.connect(g);
+  const a = ctx.createOscillator(); a.type='sine'; a.frequency.value=55;
+  const b = ctx.createOscillator(); b.type='sine'; b.frequency.value=55.6;   // slow beat
+  const c = ctx.createOscillator(); c.type='triangle'; c.frequency.value=110;
+  const cg = ctx.createGain(); cg.gain.value=0.25; c.connect(cg); cg.connect(filt);
+  a.connect(filt); b.connect(filt);
+  a.start(); b.start(); c.start();
+  const drip = setInterval(()=>{
+    if(!AUDIO.enabled || !AUDIO.ambience) return;
+    if(Math.random()<0.45)
+      tone({freq:700+Math.random()*900, to:300, dur:0.25, type:'sine', gain:0.05, bus:AUDIO.musicBus});
+  }, 4200);
+  AUDIO.ambience = { nodes:[a,b,c], gain:g, drip };
+}
+function stopAmbience(){
+  if(!AUDIO.ambience) return;
+  clearInterval(AUDIO.ambience.drip);
+  AUDIO.ambience.nodes.forEach(n=>{ try{ n.stop(); }catch(err){} });
+  AUDIO.ambience = null;
+}
+
+/* ---------- module-supplied samples ---------- */
+async function registerSounds(list, sourceLabel){
+  const ctx = audioEnsure();
+  if(!ctx || !Array.isArray(list)) return 0;
+  let n = 0;
+  for(const snd of list){
+    if(!snd || !snd.id || !snd.src) continue;
+    try{
+      const res = await fetch(snd.src);
+      const buf = await res.arrayBuffer();
+      AUDIO.custom[snd.id] = await ctx.decodeAudioData(buf);
+      n++;
+    }catch(err){ MODULE_ERRORS.push({ source:sourceLabel||'sounds', message:`could not decode "${snd.id}"` }); }
+  }
+  return n;
+}
+
+/* ---------- settings UI ---------- */
+function openAudioSettings(){
+  const b = document.getElementById('modalBody');
+  const pct = v=>Math.round(v*100);
+  b.innerHTML = `<h2>🔊 Sound</h2>
+    <div class="modal-sub">Everything is generated in the browser — no downloads.</div>
+    <label style="display:block;margin-bottom:.8rem;">
+      <input type="checkbox" id="auEnabled" ${AUDIO.enabled?'checked':''}> Sound on
+    </label>
+    <label style="display:block;margin-bottom:.6rem;font-size:.75rem;color:var(--ink-faint);">
+      Master <span id="auMasterVal">${pct(AUDIO.vol.master)}%</span>
+      <input type="range" id="auMaster" min="0" max="100" value="${pct(AUDIO.vol.master)}" style="width:100%;">
+    </label>
+    <label style="display:block;margin-bottom:.6rem;font-size:.75rem;color:var(--ink-faint);">
+      Effects <span id="auSfxVal">${pct(AUDIO.vol.sfx)}%</span>
+      <input type="range" id="auSfx" min="0" max="100" value="${pct(AUDIO.vol.sfx)}" style="width:100%;">
+    </label>
+    <label style="display:block;margin-bottom:.6rem;font-size:.75rem;color:var(--ink-faint);">
+      Ambience <span id="auMusicVal">${pct(AUDIO.vol.music)}%</span>
+      <input type="range" id="auMusic" min="0" max="100" value="${pct(AUDIO.vol.music)}" style="width:100%;">
+    </label>
+    <label style="display:block;margin-bottom:1rem;">
+      <input type="checkbox" id="auAmb" ${AUDIO.ambience?'checked':''}> Dungeon ambience
+    </label>
+    <div class="modal-actions">
+      <button class="btn small ghost" data-try="dice">🎲 Dice</button>
+      <button class="btn small ghost" data-try="hit">⚔ Hit</button>
+      <button class="btn small ghost" data-try="loot">💰 Loot</button>
+      <button class="btn small ghost" data-try="trap">⚠ Trap</button>
+    </div>
+    <div class="modal-actions" style="margin-top:.6rem;">
+      <button class="btn small primary" id="auClose">Done</button>
+    </div>`;
+  const sync = ()=>{ audioApplyVolumes(); audioSavePrefs(); };
+  document.getElementById('auEnabled').onchange = (e)=>{
+    AUDIO.enabled = e.target.checked;
+    if(AUDIO.enabled){ audioUnlock(); } else stopAmbience();
+    sync();
+  };
+  [['auMaster','master','auMasterVal'],['auSfx','sfx','auSfxVal'],['auMusic','music','auMusicVal']].forEach(([id,k,lbl])=>{
+    document.getElementById(id).oninput = (e)=>{
+      AUDIO.vol[k] = Number(e.target.value)/100;
+      document.getElementById(lbl).textContent = e.target.value+'%';
+      sync();
+    };
+  });
+  document.getElementById('auAmb').onchange = (e)=>{
+    audioUnlock();
+    if(e.target.checked) startAmbience(); else stopAmbience();
+    audioSavePrefs();
+  };
+  b.querySelectorAll('[data-try]').forEach(btn=>btn.onclick=()=>{ audioUnlock(); playSfx(btn.dataset.try); });
+  document.getElementById('auClose').onclick = closeModal;
+  openModal();
+}
+
+/* ======================================================================
+   REALTIME MODE
+   ----------------------------------------------------------------------
+   An alternative to turn order: nobody waits. Every character acts whenever
+   their own action cooldown has elapsed, so players wander the dungeon
+   independently. Encounters become *battles anchored to a tile* rather than
+   a private modal, so anyone who walks in can pitch in — and the enemy
+   fights back on its own timer instead of politely waiting.
+
+   The host stays authoritative exactly as before; only the gating changes.
+   The turn-based path is untouched, so both modes coexist.
+   ====================================================================== */
+function isRealtime(){ return !!(STATE && STATE.realtime); }
+const COOLDOWN = { move:1200, explore:1600, attack:1800, item:1200, revive:1500 };
+const ENEMY_TEMPO_MS = 3200;
+
+function battleKey(level, x, y){ return level+':'+x+','+y; }
+function battleAt(p){ return STATE.battles ? STATE.battles[battleKey(p.level,p.x,p.y)] : null; }
+function cooldownLeft(p){ return Math.max(0, (p.readyAt||0) - Date.now()); }
+function isReady(p){ return cooldownLeft(p) <= 0; }
+function setCooldown(p, kind){
+  p.readyAt = Date.now() + (COOLDOWN[kind] || 1200);
+}
+
+/* In realtime a player controls their own character at all times. */
+function rtControlledPlayer(){
+  if(!isRealtime()) return activePlayer();
+  if(NET.enabled) return STATE.players[NET.mySeat] || activePlayer();
+  return activePlayer();   // local play: the selected character
+}
+function rtCanAct(p){
+  return p && p.alive && !p.downed && !STATE.paused && !STATE.over && isReady(p);
+}
+
+/* ---------- shared, tile-anchored battles ---------- */
+// Enemies gain a little bulk per floor so descending still matters, while
+// character growth outpaces it.
+/* Enemy bulk multiplier. Tuned by simulation: with characters at the new
+   HP baselines, x1 made fights trivial (98% win, 82% HP left) while x2.4
+   gutted the lighter classes. x1.6 costs a real bite without being brutal —
+   and downed no longer means dead, so allies can pull you back. */
+const ENEMY_HP_SCALE = 1.6;
+function scaledEnemy(def, floor){
+  const bump = Math.max(0, (floor||1) - 1);
+  return Object.assign({}, def, { hp: Math.round(def.hp * ENEMY_HP_SCALE) + bump*2 });
+}
+function startBattle(tile, enemyId, level){
+  STATE.battles = STATE.battles || {};
+  const k = battleKey(level, tile.x, tile.y);
+  if(STATE.battles[k]) return STATE.battles[k];
+  const raw = findEnemyDef(enemyId);
+  if(!raw) return null;
+  const def = scaledEnemy(raw, level);
+  STATE.battles[k] = {
+    key:k, level, x:tile.x, y:tile.y,
+    enemyId, hp:def.hp, maxHp:def.hp, status:{},
+    nextEnemyAt: Date.now() + ENEMY_TEMPO_MS,
+    joined:[],
+  };
+  playSfx('battle');
+  log(`A ${def.name} is loose on Level ${level}!`, 'combat');
+  return STATE.battles[k];
+}
+function joinBattle(p){
+  const b = battleAt(p);
+  if(!b) return null;
+  if(!b.joined.includes(p.id)){
+    b.joined.push(p.id);
+    playSfx('join');
+    log(`${p.name} joins the fight against the ${findEnemyDef(b.enemyId).name}.`, 'combat');
+  }
+  return b;
+}
+function rtAttack(){
+  const p = rtControlledPlayer();
+  if(!rtCanAct(p)) return;
+  const b = joinBattle(p);
+  if(!b) return;
+  setCooldown(p,'attack');
+  playSfx('dice');
+
+  // Reuse the turn-based rolls by pointing COMBAT at the shared battle.
+  const def = findEnemyDef(b.enemyId);
+  COMBAT = { p, enemyDef:def, enemyHp:b.hp, enemyStatus:b.status, tile:null };
+  const result = playerAttackRoll(p);
+  let text = `${p.name}: ${result.text}`;
+  if(result.hit){
+    const dmg = rollExpr(result.dmgDie);
+    const mult = result.mult * getStat(p,'dmgMult');
+    const total = Math.round(dmg.total * mult);
+    b.hp -= total;
+    text += ` — hit for ${total}.`;
+    p.items.forEach(it=>{
+      const idef = findItemDef(it.id);
+      if(!idef || !idef.onHit || !idef.onHit.length) return;
+      if(idef.cls && idef.cls!==p.cls) return;
+      COMBAT.enemyHp = b.hp;
+      const notes = applyEffects(idef.onHit, p, { combat: COMBAT });
+      b.hp = COMBAT.enemyHp;
+      if(notes) text += ` ${idef.name}: ${notes}.`;
+    });
+    setTimeout(()=>playSfx('hit'), 190);
+  } else { text += ' — miss.'; setTimeout(()=>playSfx('miss'), 190); }
+  COMBAT = null;
+  log(text, 'combat');
+
+  if(b.hp<=0) resolveBattle(b, p);
+  renderAll();
+}
+function rtUseItem(itemIndex){
+  const p = rtControlledPlayer();
+  if(!rtCanAct(p)) return;
+  const it = p.items[itemIndex];
+  if(!it) return;
+  const def = findItemDef(it.id);
+  if(!def) return;
+  const b = battleAt(p);
+  const where = b ? 'combat' : 'explore';
+  if(!itemUsableIn(def, where)) return;
+  setCooldown(p,'item');
+
+  const ctx = {};
+  if(b){
+    COMBAT = { p, enemyDef:findEnemyDef(b.enemyId), enemyHp:b.hp, enemyStatus:b.status, tile:null };
+    ctx.combat = COMBAT;
+  }
+  const notes = applyEffects(def.effects, p, ctx);
+  if(b){ b.hp = COMBAT.enemyHp; COMBAT = null; }
+  if(it.usesLeft!==Infinity) it.usesLeft--;
+  p.items = p.items.filter(x=>x.usesLeft===Infinity || x.usesLeft>0);
+  log(`${p.name} uses ${def.name} — ${notes || 'no effect'}.`, 'loot');
+  if(ctx.deckPeek){
+    const options = [];
+    for(let i=0;i<ctx.deckPeek;i++) options.push(drawTileType());
+    showClairvoyanceChoice(options, def);
+    return;
+  }
+  if(b && b.hp<=0) resolveBattle(b, p);
+  renderAll();
+}
+function resolveBattle(b, killer){
+  const def = findEnemyDef(b.enemyId);
+  playSfx('enemy_die');
+  log(`The ${def.name} falls to ${killer.name}.`, 'combat');
+  // Everyone who fought gets the trophy — realtime fights are shared work.
+  b.joined.forEach(id=>{
+    const pl = STATE.players.find(x=>x.id===id);
+    if(pl){ pl.trophies.push(b.enemyId); awardXp(pl, xpValueOf(def), 'shared kill'); }
+  });
+  if(!b.joined.length) killer.trophies.push(b.enemyId);
+  delete STATE.battles[b.key];
+
+  if(def.boss){ endGame(true, `${killer.name} has slain ${def.name}! The expedition triumphs.`); return; }
+  const tile = STATE.grid.get(key(b.x,b.y));
+  if(tile){ tile.resolved = true; if(tile.event && tile.event.thenLoot){ grantLoot(tile); return; } }
+}
+/* The enemy side of realtime: each live battle swings on its own clock. */
+function tickBattles(){
+  if(!isRealtime() || !STATE.battles || STATE.paused || STATE.over) return;
+  if(NET.enabled && NET.role!=='host') return;
+  const now = Date.now();
+  let changed = false;
+  Object.values(STATE.battles).forEach(b=>{
+    if(now < b.nextEnemyAt) return;
+    b.nextEnemyAt = now + ENEMY_TEMPO_MS;
+    const def = findEnemyDef(b.enemyId);
+    const here = STATE.players.filter(pl=>pl.alive && !pl.downed && pl.level===b.level && pl.x===b.x && pl.y===b.y);
+    if(!here.length) return;                 // nobody in reach
+    if(b.status.stun>0 || b.status.freeze>0){
+      if(b.status.stun>0) b.status.stun--;
+      if(b.status.freeze>0) b.status.freeze--;
+      log(`The ${def.name} is held fast.`, 'combat');
+      changed = true; return;
+    }
+    if(b.status.bleed>0){
+      const bl = rollExpr('1d4'); b.hp -= bl.total; b.status.bleed--;
+      log(`The ${def.name} bleeds for ${bl.total}.`, 'combat');
+      if(b.hp<=0){ resolveBattle(b, here[0]); changed = true; return; }
+    }
+    const target = pick(here);
+    const roll = rollDie(20)+2;
+    if(roll >= getStat(target,'def')){
+      const dmg = rollExpr(def.dmg);
+      target.hp = Math.max(0, target.hp - dmg.total);
+      playSfx('hurt');
+      log(`${def.name} strikes ${target.name} for ${dmg.total}.`, 'combat');
+      if(def.special==='poison') target.statusEffects.poisoned = 2;
+      if(target.hp<=0) knockDown(target, 'to the '+def.name);
+    } else {
+      log(`${def.name} lunges at ${target.name} and misses.`, 'combat');
+    }
+    changed = true;
+  });
+  if(changed){
+    if(partyWiped()){ endGame(false, 'The whole party lies broken in the dark.'); return; }
+    renderAll();
+  }
+}
+/* Buffs tick on a wall clock rather than on turns. */
+function tickRealtimeBuffs(){
+  if(!isRealtime() || STATE.paused || STATE.over) return;
+  if(NET.enabled && NET.role!=='host') return;
+  const now = Date.now();
+  STATE.rtBuffTickAt = STATE.rtBuffTickAt || now;
+  if(now - STATE.rtBuffTickAt < 6000) return;
+  STATE.rtBuffTickAt = now;
+  STATE.players.forEach(p=>tickBuffs(p));
+  renderAll();
 }
 
 /* ======================================================================
@@ -4042,10 +5282,23 @@ function openSaveMenu(){
 // One shared heartbeat drives the turn clock. The host uses it to enforce the
 // limit; clients use it purely to redraw their countdown.
 setInterval(()=>{ try{ tickTurnClock(); }catch(err){} }, 1000);
+// Realtime needs a faster pulse: enemies swing on their own clock and
+// cooldown bars have to move.
+setInterval(()=>{
+  try{
+    if(!STATE || !isRealtime() || STATE.over) return;
+    tickBattles();
+    tickRealtimeBuffs();
+    const active = document.querySelector('.screen.active');
+    if(active && active.id==='screen-game') renderTurnbar();
+  }catch(err){}
+}, 400);
 
+audioLoadPrefs();
 loadCoreContent();
 initSetupDefaults();
 refreshTitleButtons();
+initThemes();
 // Folder modules load asynchronously; refresh the Codex if it's already open.
 loadModulesFromFolder().then(()=>{
   const active = document.querySelector('.screen.active');
