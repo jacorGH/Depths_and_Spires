@@ -1,6 +1,6 @@
 {
   "name": "Depths & Spires",
-  "short_name": "D&S",
+  "short_name": "Depths & Spires",
   "description": "A tile-by-tile dungeon expedition for 1-4 players.",
   "start_url": "./depths-and-spires.html",
   "display": "standalone",
